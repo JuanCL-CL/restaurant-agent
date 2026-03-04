@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
             const availability = await checkAvailability(date, time, party_size, section);
 
             if (availability.available) {
-              const sections = [...new Set(availability.tables.map((t) => t.section))];
+              const sections = [...new Set(availability.tables.map((t) => t.section_name || t.section_id))];
               result = {
                 available: true,
                 message: `Yes, we have availability for ${party_size} guests on ${date} at ${time}. Available sections: ${sections.join(", ")}.`,
