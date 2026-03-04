@@ -22,6 +22,11 @@ export default function Dashboard() {
     new Date().toISOString().split("T")[0]
   );
   const [loading, setLoading] = useState(true);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
 
   useEffect(() => {
     fetchReservations();
@@ -148,18 +153,19 @@ export default function Dashboard() {
                     </button>
                   );
                 })}
-                <div className="relative ml-1">
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <div className="flex flex-col items-center px-3 py-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition min-w-[52px] cursor-pointer">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide">More</span>
-                    <span className="text-lg font-bold">📅</span>
-                  </div>
-                </div>
+                <button
+                  onClick={() => {
+                    const d = new Date(selectedDate + "T12:00:00");
+                    setCalendarMonth({ year: d.getFullYear(), month: d.getMonth() });
+                    setCalendarOpen(!calendarOpen);
+                  }}
+                  className={`flex flex-col items-center px-3 py-2 rounded-xl transition min-w-[52px] cursor-pointer ${
+                    calendarOpen ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-400 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="text-[10px] font-semibold uppercase tracking-wide">More</span>
+                  <span className="text-lg font-bold">📅</span>
+                </button>
               </div>
             </div>
 
@@ -170,6 +176,83 @@ export default function Dashboard() {
               ›
             </button>
           </div>
+
+          {/* Calendar Dropdown */}
+          {calendarOpen && (() => {
+            const { year, month } = calendarMonth;
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const monthName = new Date(year, month).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+            const days = [];
+            for (let i = 0; i < firstDay; i++) days.push(null);
+            for (let i = 1; i <= daysInMonth; i++) days.push(i);
+
+            return (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="max-w-sm mx-auto">
+                  {/* Month nav */}
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      onClick={() => {
+                        const prev = month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 };
+                        setCalendarMonth(prev);
+                      }}
+                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 transition text-slate-500 font-medium"
+                    >
+                      ‹
+                    </button>
+                    <h3 className="text-lg font-bold text-slate-900">{monthName}</h3>
+                    <button
+                      onClick={() => {
+                        const next = month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 };
+                        setCalendarMonth(next);
+                      }}
+                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 transition text-slate-500 font-medium"
+                    >
+                      ›
+                    </button>
+                  </div>
+
+                  {/* Day headers */}
+                  <div className="grid grid-cols-7 gap-1 mb-1">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                      <div key={d} className="text-center text-xs font-semibold text-slate-400 uppercase tracking-wide py-1">
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Days grid */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {days.map((day, i) => {
+                      if (day === null) return <div key={`empty-${i}`} />;
+                      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                      const isSelected = dateStr === selectedDate;
+                      const isToday = dateStr === new Date().toISOString().split("T")[0];
+                      return (
+                        <button
+                          key={dateStr}
+                          onClick={() => {
+                            setSelectedDate(dateStr);
+                            setCalendarOpen(false);
+                          }}
+                          className={`h-10 rounded-lg text-sm font-medium transition ${
+                            isSelected
+                              ? "bg-slate-900 text-white"
+                              : isToday
+                              ? "bg-blue-50 text-blue-700 font-bold"
+                              : "text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Stats Cards */}
