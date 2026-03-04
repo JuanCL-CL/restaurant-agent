@@ -177,6 +177,23 @@ export function createReservation(
   return reservation;
 }
 
+export function updateReservation(
+  reservationId: string,
+  updates: Partial<Pick<Reservation, "guestName" | "partySize" | "date" | "time" | "specialRequests" | "phone">>
+): Reservation | { error: string } {
+  const reservation = reservations.find((r) => r.id === reservationId && r.status === "confirmed");
+  if (!reservation) {
+    return { error: "Reservation not found." };
+  }
+  if (updates.guestName) reservation.guestName = updates.guestName;
+  if (updates.partySize) reservation.partySize = updates.partySize;
+  if (updates.date) reservation.date = updates.date;
+  if (updates.time) reservation.time = updates.time;
+  if (updates.specialRequests !== undefined) reservation.specialRequests = updates.specialRequests;
+  if (updates.phone) reservation.phone = updates.phone;
+  return reservation;
+}
+
 export function cancelReservation(reservationId: string): boolean {
   const reservation = reservations.find((r) => r.id === reservationId);
   if (reservation) {

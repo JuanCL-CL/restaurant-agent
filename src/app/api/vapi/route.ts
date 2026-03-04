@@ -4,6 +4,7 @@ import {
   createReservation,
   findReservation,
   cancelReservation,
+  updateReservation,
 } from "@/lib/db";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,6 +211,27 @@ export async function POST(req: NextRequest) {
               result = {
                 found: false,
                 message: `I couldn't find a reservation under the name "${guest_name}".`,
+              };
+            }
+            break;
+          }
+
+          case "update_reservation": {
+            const { reservation_id, guest_name, party_size, date, time, special_requests } = args;
+            const updates: Record<string, unknown> = {};
+            if (guest_name) updates.guestName = guest_name;
+            if (party_size) updates.partySize = party_size;
+            if (date) updates.date = date;
+            if (time) updates.time = time;
+            if (special_requests !== undefined) updates.specialRequests = special_requests;
+            
+            const updated = updateReservation(reservation_id, updates);
+            if ("error" in updated) {
+              result = { success: false, message: updated.error };
+            } else {
+              result = {
+                success: true,
+                message: `Reservation updated! Now under ${updated.guestName}, party of ${updated.partySize}, on ${updated.date} at ${updated.time}.`,
               };
             }
             break;
