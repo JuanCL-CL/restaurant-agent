@@ -307,7 +307,25 @@ export default function SettingsPage() {
                           <div key={table.id} className="flex items-center justify-between bg-white border rounded-lg px-3 py-2 group">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium text-gray-900">{table.name}</span>
-                              <span className="text-xs text-gray-400">({table.capacity} seats)</span>
+                              <select
+                                value={table.capacity}
+                                onChange={async (e) => {
+                                  const newCap = parseInt(e.target.value);
+                                  try {
+                                    await fetch("/api/settings", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ action: "update_table", id: table.id, capacity: newCap }),
+                                    });
+                                    setTables(tables.map((t) => t.id === table.id ? { ...t, capacity: newCap } : t));
+                                  } catch { /* ignore */ }
+                                }}
+                                className="text-xs border rounded px-1.5 py-0.5 text-gray-700 bg-gray-50 cursor-pointer"
+                              >
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20].map((n) => (
+                                  <option key={n} value={n}>{n} seats</option>
+                                ))}
+                              </select>
                             </div>
                             <button
                               onClick={() => removeTable(table.id)}
