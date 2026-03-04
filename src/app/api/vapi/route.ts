@@ -183,9 +183,22 @@ export async function POST(req: NextRequest) {
                 alternativeTimes: reservation.alternativeTimes,
               };
             } else {
+              // Generate spoken date so AI doesn't have to convert YYYY-MM-DD
+              const d = new Date(date + "T12:00:00");
+              const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+              const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+              const ordinal = (n: number) => { const s = ["th","st","nd","rd"]; const v = n % 100; return n + (s[(v-20)%10] || s[v] || s[0]); };
+              const spokenDate = `${dayNames[d.getDay()]}, ${monthNames[d.getMonth()]} ${ordinal(d.getDate())}`;
+              
+              // Convert 24h time to spoken
+              const [h, m] = time.split(":").map(Number);
+              const ampm = h >= 12 ? "PM" : "AM";
+              const hour12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+              const spokenTime = m === 0 ? `${hour12} ${ampm}` : `${hour12}:${String(m).padStart(2,"0")} ${ampm}`;
+
               result = {
                 success: true,
-                message: `Reservation confirmed! ${guest_name}, party of ${party_size}, on ${date} at ${time}.`,
+                message: `Reservation confirmed! Say this exactly to the caller: "${guest_name}, party of ${party_size}, on ${spokenDate} at ${spokenTime}." Do NOT say the date or time in any other format.`,
                 reservationId: reservation.id,
               };
             }
