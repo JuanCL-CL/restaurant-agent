@@ -41,7 +41,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newSection, setNewSection] = useState({ name: "", description: "" });
-  const [newTable, setNewTable] = useState({ name: "", capacity: 2, section_id: "" });
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -70,9 +69,9 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update_settings", settings }),
       });
-      showMessage("Settings saved!");
+      showMessage("✅ Settings saved!");
     } catch {
-      showMessage("Failed to save");
+      showMessage("❌ Failed to save");
     }
     setSaving(false);
   }
@@ -89,15 +88,15 @@ export default function SettingsPage() {
       if (data.section) {
         setSections([...sections, data.section]);
         setNewSection({ name: "", description: "" });
-        showMessage(`"${data.section.name}" section added!`);
+        showMessage(`✅ "${data.section.name}" section added!`);
       }
     } catch {
-      showMessage("Failed to add section");
+      showMessage("❌ Failed to add section");
     }
   }
 
-  async function removeSection(id: string) {
-    if (!confirm("Delete this section and all its tables?")) return;
+  async function removeSection(id: string, name: string) {
+    if (!confirm(`Delete "${name}" and all its tables?`)) return;
     try {
       await fetch("/api/settings", {
         method: "POST",
@@ -106,28 +105,9 @@ export default function SettingsPage() {
       });
       setSections(sections.filter((s) => s.id !== id));
       setTables(tables.filter((t) => t.section_id !== id));
-      showMessage("Section deleted");
+      showMessage(`Removed "${name}"`);
     } catch {
-      showMessage("Failed to delete");
-    }
-  }
-
-  async function addTable() {
-    if (!newTable.name.trim() || !newTable.section_id) return;
-    try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create_table", ...newTable }),
-      });
-      const data = await res.json();
-      if (data.table) {
-        setTables([...tables, data.table]);
-        setNewTable({ name: "", capacity: 2, section_id: newTable.section_id });
-        showMessage(`"${data.table.name}" added!`);
-      }
-    } catch {
-      showMessage("Failed to add table");
+      showMessage("❌ Failed to delete");
     }
   }
 
@@ -139,9 +119,8 @@ export default function SettingsPage() {
         body: JSON.stringify({ action: "delete_table", id }),
       });
       setTables(tables.filter((t) => t.id !== id));
-      showMessage("Table removed");
     } catch {
-      showMessage("Failed to remove");
+      showMessage("❌ Failed to remove table");
     }
   }
 
@@ -150,155 +129,193 @@ export default function SettingsPage() {
     setTimeout(() => setMessage(""), 3000);
   }
 
+  const totalTables = tables.length;
+  const totalSeats = tables.reduce((s, t) => s + t.capacity, 0);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-400 text-lg">Loading settings...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="animate-pulse text-slate-400 text-lg">Loading settings...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">⚙️ Restaurant Settings</h1>
-            <p className="text-sm text-gray-500">Customize your layout and preferences</p>
+            <h1 className="text-2xl font-bold text-slate-900">⚙️ Settings</h1>
+            <p className="text-sm text-slate-500">Configure your restaurant</p>
           </div>
           <Link
             href="/"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium"
           >
-            ← Back to Dashboard
+            ← Dashboard
           </Link>
         </div>
       </header>
 
+      {/* Toast */}
       {message && (
-        <div className="max-w-4xl mx-auto px-6 mt-4">
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg text-sm">
+        <div className="fixed top-20 right-6 z-50 animate-fade-in">
+          <div className="bg-slate-900 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium">
             {message}
           </div>
         </div>
       )}
 
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        {/* Restaurant Info */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Restaurant Info</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Restaurant Name</label>
-              <input
-                type="text"
-                value={settings.name}
-                onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input
-                type="text"
-                value={settings.phone || ""}
-                onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-              <input
-                type="text"
-                value={settings.address || ""}
-                onChange={(e) => setSettings({ ...settings, address: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
-            </div>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50 text-center">
+            <p className="text-3xl font-bold text-slate-900">{sections.length}</p>
+            <p className="text-xs text-slate-500 mt-1">Sections</p>
           </div>
-
-          <h3 className="text-md font-medium text-gray-900 mt-6 mb-3">Hours & Reservations</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Opens</label>
-              <input
-                type="time"
-                value={settings.open_time}
-                onChange={(e) => setSettings({ ...settings, open_time: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Closes</label>
-              <input
-                type="time"
-                value={settings.close_time}
-                onChange={(e) => setSettings({ ...settings, close_time: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Last Seating</label>
-              <input
-                type="time"
-                value={settings.last_seating}
-                onChange={(e) => setSettings({ ...settings, last_seating: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
-            </div>
-
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50 text-center">
+            <p className="text-3xl font-bold text-slate-900">{totalTables}</p>
+            <p className="text-xs text-slate-500 mt-1">Tables</p>
           </div>
-
-          <button
-            onClick={saveSettings}
-            disabled={saving}
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save Settings"}
-          </button>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50 text-center">
+            <p className="text-3xl font-bold text-slate-900">{totalSeats}</p>
+            <p className="text-xs text-slate-500 mt-1">Total Seats</p>
+          </div>
         </div>
 
-        {/* Sections & Tables */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Seating Layout</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            Define sections and tables. The AI uses this to check availability and seat callers.
-          </p>
+        {/* Restaurant Info */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/50 overflow-hidden">
+          <div className="px-6 py-4 bg-slate-50 border-b">
+            <h2 className="text-lg font-semibold text-slate-900">🏪 Restaurant Info</h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1.5">Restaurant Name</label>
+                <input
+                  type="text"
+                  value={settings.name}
+                  onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="Marco's Italian Kitchen"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1.5">Phone Number</label>
+                <input
+                  type="text"
+                  value={settings.phone || ""}
+                  onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-600 mb-1.5">Address</label>
+                <input
+                  type="text"
+                  value={settings.address || ""}
+                  onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="123 Main St, New York, NY 10001"
+                />
+              </div>
+            </div>
 
-          <div className="space-y-4 mb-6">
-            {sections.map((section) => {
-              const sectionTables = tables.filter((t) => t.section_id === section.id);
-              return (
-                <div key={section.id} className="border rounded-xl overflow-hidden">
-                  {/* Section header */}
-                  <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-900">{section.name}</p>
-                      {section.description && <p className="text-xs text-gray-500">{section.description}</p>}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-gray-500">
-                        {sectionTables.length} table{sectionTables.length !== 1 ? "s" : ""} · {sectionTables.reduce((s, t) => s + t.capacity, 0)} seats
-                      </span>
+            <div className="mt-6 pt-6 border-t border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wider">Hours</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Opens</label>
+                  <input
+                    type="time"
+                    value={settings.open_time}
+                    onChange={(e) => setSettings({ ...settings, open_time: e.target.value })}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Closes</label>
+                  <input
+                    type="time"
+                    value={settings.close_time}
+                    onChange={(e) => setSettings({ ...settings, close_time: e.target.value })}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Last Seating</label>
+                  <input
+                    type="time"
+                    value={settings.last_seating}
+                    onChange={(e) => setSettings({ ...settings, last_seating: e.target.value })}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={saveSettings}
+                disabled={saving}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium disabled:opacity-50 shadow-sm"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Seating Layout */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/50 overflow-hidden">
+          <div className="px-6 py-4 bg-slate-50 border-b flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">🪑 Seating Layout</h2>
+            <p className="text-sm text-slate-500">{totalTables} tables · {totalSeats} seats</p>
+          </div>
+          <div className="p-6">
+            {/* Sections */}
+            <div className="space-y-5 mb-8">
+              {sections.map((section) => {
+                const sectionTables = tables.filter((t) => t.section_id === section.id);
+                const sectionSeats = sectionTables.reduce((s, t) => s + t.capacity, 0);
+                return (
+                  <div key={section.id} className="rounded-xl border border-slate-200 overflow-hidden">
+                    {/* Section header */}
+                    <div className="bg-gradient-to-r from-slate-50 to-white px-5 py-3.5 flex items-center justify-between border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center text-sm font-bold">
+                          {section.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900">{section.name}</h3>
+                          <p className="text-xs text-slate-500">
+                            {sectionTables.length} table{sectionTables.length !== 1 ? "s" : ""} · {sectionSeats} seats
+                            {section.description && ` · ${section.description}`}
+                          </p>
+                        </div>
+                      </div>
                       <button
-                        onClick={() => removeSection(section.id)}
-                        className="text-red-400 hover:text-red-600 text-xs font-medium"
+                        onClick={() => removeSection(section.id, section.name)}
+                        className="text-xs text-slate-400 hover:text-red-500 transition font-medium px-2 py-1 rounded hover:bg-red-50"
                       >
-                        Delete Section
+                        Delete
                       </button>
                     </div>
-                  </div>
 
-                  {/* Tables in this section */}
-                  <div className="p-4">
-                    {sectionTables.length === 0 ? (
-                      <p className="text-sm text-gray-400 italic">No tables yet — add one below</p>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
-                        {sectionTables.map((table) => (
-                          <div key={table.id} className="flex items-center justify-between bg-white border rounded-lg px-3 py-2 group">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-900">{table.name}</span>
+                    {/* Tables */}
+                    <div className="p-4">
+                      {sectionTables.length === 0 ? (
+                        <p className="text-sm text-slate-400 italic text-center py-2">No tables — add one below</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {sectionTables.map((table) => (
+                            <div
+                              key={table.id}
+                              className="group relative flex items-center gap-2 bg-slate-50 hover:bg-slate-100 rounded-lg px-3 py-2 transition border border-transparent hover:border-slate-200"
+                            >
+                              <span className="text-sm font-medium text-slate-800">{table.name}</span>
                               <select
                                 value={table.capacity}
                                 onChange={async (e) => {
@@ -312,95 +329,97 @@ export default function SettingsPage() {
                                     setTables(tables.map((t) => t.id === table.id ? { ...t, capacity: newCap } : t));
                                   } catch { /* ignore */ }
                                 }}
-                                className="text-xs border rounded px-1.5 py-0.5 text-gray-700 bg-gray-50 cursor-pointer"
+                                className="text-xs border-0 bg-white rounded-md px-1.5 py-0.5 text-slate-600 cursor-pointer shadow-sm"
                               >
                                 {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20].map((n) => (
                                   <option key={n} value={n}>{n} seats</option>
                                 ))}
                               </select>
+                              <button
+                                onClick={() => removeTable(table.id)}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm"
+                              >
+                                ×
+                              </button>
                             </div>
-                            <button
-                              onClick={() => removeTable(table.id)}
-                              className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
 
-                    {/* Quick add table to this section */}
-                    <div className="flex gap-2 pt-2 border-t border-dashed">
-                      <input
-                        type="text"
-                        placeholder={`New table name (e.g., ${section.name} ${sectionTables.length + 1})`}
-                        id={`new-table-name-${section.id}`}
-                        className="flex-1 border rounded-lg px-3 py-1.5 text-sm text-gray-900"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Seats"
-                        defaultValue={4}
-                        id={`new-table-cap-${section.id}`}
-                        className="w-20 border rounded-lg px-3 py-1.5 text-sm text-gray-900"
-                      />
-                      <button
-                        onClick={async () => {
-                          const nameEl = document.getElementById(`new-table-name-${section.id}`) as HTMLInputElement;
-                          const capEl = document.getElementById(`new-table-cap-${section.id}`) as HTMLInputElement;
-                          const name = nameEl?.value?.trim();
-                          const capacity = parseInt(capEl?.value) || 4;
-                          if (!name) return;
-                          try {
-                            const res = await fetch("/api/settings", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ action: "create_table", name, capacity, section_id: section.id }),
-                            });
-                            const data = await res.json();
-                            if (data.table) {
-                              setTables([...tables, data.table]);
-                              nameEl.value = "";
-                              showMessage(`"${name}" added to ${section.name}!`);
-                            }
-                          } catch { showMessage("Failed to add table"); }
-                        }}
-                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-                      >
-                        + Add
-                      </button>
+                      {/* Quick add */}
+                      <div className="flex gap-2 pt-3 border-t border-dashed border-slate-200">
+                        <input
+                          type="text"
+                          placeholder={`Add table to ${section.name}...`}
+                          id={`new-table-name-${section.id}`}
+                          className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Seats"
+                          defaultValue={4}
+                          id={`new-table-cap-${section.id}`}
+                          className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        />
+                        <button
+                          onClick={async () => {
+                            const nameEl = document.getElementById(`new-table-name-${section.id}`) as HTMLInputElement;
+                            const capEl = document.getElementById(`new-table-cap-${section.id}`) as HTMLInputElement;
+                            const name = nameEl?.value?.trim();
+                            const capacity = parseInt(capEl?.value) || 4;
+                            if (!name) return;
+                            try {
+                              const res = await fetch("/api/settings", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ action: "create_table", name, capacity, section_id: section.id }),
+                              });
+                              const data = await res.json();
+                              if (data.table) {
+                                setTables([...tables, data.table]);
+                                nameEl.value = "";
+                                showMessage(`✅ "${name}" added to ${section.name}`);
+                              }
+                            } catch { showMessage("❌ Failed to add table"); }
+                          }}
+                          className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium"
+                        >
+                          + Add
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
 
-          {/* Add new section */}
-          <div className="pt-4 border-t">
-            <p className="text-sm font-medium text-gray-700 mb-2">Add New Section</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Section name (e.g., Upstairs, Rooftop)"
-                value={newSection.name}
-                onChange={(e) => setNewSection({ ...newSection, name: e.target.value })}
-                className="flex-1 border rounded-lg px-3 py-2 text-sm text-gray-900"
-              />
-              <input
-                type="text"
-                placeholder="Description (optional)"
-                value={newSection.description}
-                onChange={(e) => setNewSection({ ...newSection, description: e.target.value })}
-                className="flex-1 border rounded-lg px-3 py-2 text-sm text-gray-900"
-              />
-              <button
-                onClick={addSection}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium whitespace-nowrap"
-              >
-                + Add Section
-              </button>
+            {/* New Section */}
+            <div className="bg-slate-50 rounded-xl p-5 border border-dashed border-slate-300">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Add New Section</h3>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder="Section name (e.g., Rooftop, Upstairs)"
+                  value={newSection.name}
+                  onChange={(e) => setNewSection({ ...newSection, name: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && addSection()}
+                  className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                />
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  value={newSection.description}
+                  onChange={(e) => setNewSection({ ...newSection, description: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && addSection()}
+                  className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                />
+                <button
+                  onClick={addSection}
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition text-sm font-semibold shadow-sm whitespace-nowrap"
+                >
+                  + Add Section
+                </button>
+              </div>
             </div>
           </div>
         </div>
