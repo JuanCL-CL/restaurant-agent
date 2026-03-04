@@ -47,30 +47,59 @@ export default function Dashboard() {
     return `${displayHour}:${m} ${ampm}`;
   };
 
-  const sectionColors: Record<string, string> = {
-    indoor: "bg-blue-100 text-blue-800",
-    outdoor: "bg-green-100 text-green-800",
-    bar: "bg-purple-100 text-purple-800",
-    private: "bg-amber-100 text-amber-800",
+  const formatDateDisplay = (dateStr: string) => {
+    const date = new Date(dateStr + "T12:00:00");
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
   };
 
+  // Navigate dates
+  const shiftDate = (days: number) => {
+    const d = new Date(selectedDate + "T12:00:00");
+    d.setDate(d.getDate() + days);
+    setSelectedDate(d.toISOString().split("T")[0]);
+  };
+
+  // Group by time slot
+  const timeSlots = reservations.reduce((acc, r) => {
+    const key = r.time;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(r);
+    return acc;
+  }, {} as Record<string, Reservation[]>);
+
+  const sortedSlots = Object.keys(timeSlots).sort();
+
+  const totalGuests = reservations.reduce((sum, r) => sum + r.party_size, 0);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white/80 backdrop-blur-sm border-b sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">🍽️ TableCall</h1>
-            <p className="text-sm text-gray-500">AI-Powered Restaurant Reservations</p>
+            <h1 className="text-2xl font-bold text-slate-900">🍽️ TableCall</h1>
+            <p className="text-sm text-slate-500">AI-Powered Reservations</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-sm text-gray-600">Agent Active</span>
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-sm text-slate-600">Agent Active</span>
             </div>
             <a
               href="/settings"
-              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+              className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition text-sm font-medium"
             >
               ⚙️ Settings
             </a>
@@ -79,94 +108,149 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl p-5 shadow-sm border">
-            <p className="text-sm text-gray-500">Today&apos;s Reservations</p>
-            <p className="text-3xl font-bold text-gray-900">{reservations.length}</p>
+        {/* Date Navigation */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => shiftDate(-1)}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white border hover:bg-slate-50 transition text-slate-600"
+            >
+              ←
+            </button>
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-slate-900">{formatDateDisplay(selectedDate)}</h2>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="text-sm text-slate-400 bg-transparent border-none text-center cursor-pointer hover:text-slate-600 transition"
+              />
+            </div>
+            <button
+              onClick={() => shiftDate(1)}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white border hover:bg-slate-50 transition text-slate-600"
+            >
+              →
+            </button>
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm border">
-            <p className="text-sm text-gray-500">Total Guests</p>
-            <p className="text-3xl font-bold text-gray-900">
-              {reservations.reduce((sum, r) => sum + r.party_size, 0)}
-            </p>
+          <button
+            onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
+            className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border rounded-lg hover:bg-slate-50 transition"
+          >
+            Today
+          </button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-lg">📋</div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{reservations.length}</p>
+                <p className="text-xs text-slate-500">Reservations</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm border">
-            <p className="text-sm text-gray-500">Tables Available</p>
-            <p className="text-3xl font-bold text-gray-900">
-              {12 - reservations.length}
-            </p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-lg">👥</div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{totalGuests}</p>
+                <p className="text-xs text-slate-500">Total Guests</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm border">
-            <p className="text-sm text-gray-500">Calls Handled</p>
-            <p className="text-3xl font-bold text-gray-900">—</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-lg">🪑</div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{sortedSlots.length}</p>
+                <p className="text-xs text-slate-500">Time Slots</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-lg">📞</div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">—</p>
+                <p className="text-xs text-slate-500">Calls Today</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Date Picker & Reservations */}
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="px-6 py-4 border-b flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Reservations</h2>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm text-gray-700"
-            />
+        {/* Reservations Timeline */}
+        {loading ? (
+          <div className="bg-white rounded-2xl shadow-sm border p-16 text-center">
+            <div className="animate-pulse text-slate-400 text-lg">Loading reservations...</div>
           </div>
-
-          {loading ? (
-            <div className="p-12 text-center text-gray-400">Loading...</div>
-          ) : reservations.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-gray-400 text-lg">No reservations for this date</p>
-              <p className="text-gray-300 text-sm mt-1">
-                Reservations made via phone will appear here automatically
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {reservations
-                .sort((a, b) => a.time.localeCompare(b.time))
-                .map((reservation) => (
-                  <div
-                    key={reservation.id}
-                    className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="text-center min-w-[60px]">
-                        <p className="text-lg font-bold text-gray-900">
-                          {formatTime(reservation.time)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {reservation.guest_name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Party of {reservation.party_size}
-                          {reservation.special_requests &&
-                            ` · ${reservation.special_requests}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          sectionColors[(reservation.section_name || "indoor").toLowerCase()] || "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {reservation.section_name || "—"}
-                      </span>
-                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Confirmed
-                      </span>
-                    </div>
+        ) : reservations.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border p-16 text-center">
+            <div className="text-5xl mb-4">📭</div>
+            <p className="text-slate-500 text-lg font-medium">No reservations for {formatDateDisplay(selectedDate)}</p>
+            <p className="text-slate-400 text-sm mt-1">
+              Reservations made via phone will appear here automatically
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {sortedSlots.map((time) => (
+              <div key={time}>
+                {/* Time slot header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-sm font-bold">
+                    {formatTime(time)}
                   </div>
-                ))}
-            </div>
-          )}
-        </div>
+                  <div className="flex-1 h-px bg-slate-200"></div>
+                  <span className="text-sm text-slate-400">
+                    {timeSlots[time].length} reservation{timeSlots[time].length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {/* Reservation cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 ml-2">
+                  {timeSlots[time].map((reservation) => (
+                    <div
+                      key={reservation.id}
+                      className="bg-white rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow p-4"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-slate-900 text-lg">
+                            {reservation.guest_name}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-sm text-slate-500">
+                              👥 {reservation.party_size} guest{reservation.party_size !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Confirmed
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {reservation.section_name && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">
+                            📍 {reservation.section_name}
+                          </span>
+                        )}
+                        {reservation.special_requests && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            ⚠️ {reservation.special_requests}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
