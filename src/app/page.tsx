@@ -106,36 +106,70 @@ export default function Dashboard() {
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Date Navigation */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200/60 p-6 mb-8">
+          <div className="flex items-center justify-between">
             <button
               onClick={() => shiftDate(-1)}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-[#e8eaef] border border-slate-200/60 hover:bg-[#dfe2e8] transition text-slate-500"
+              className="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition text-slate-500 text-lg font-medium"
             >
-              ←
+              ‹
             </button>
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">{formatDateDisplay(selectedDate)}</h2>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="text-sm text-slate-400 bg-transparent border-none text-center cursor-pointer hover:text-slate-600 transition"
-              />
+
+            <div className="flex-1 text-center">
+              <h2 className="text-3xl font-bold text-slate-900 mb-1">{formatDateDisplay(selectedDate)}</h2>
+              <p className="text-sm text-slate-400 mb-3">
+                {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                {[-1, 0, 1, 2, 3, 4, 5, 6].map((offset) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + offset);
+                  const dateStr = d.toISOString().split("T")[0];
+                  const isSelected = dateStr === selectedDate;
+                  const dayLabel = offset === 0 ? "Today" : offset === 1 ? "Tmrw" : d.toLocaleDateString("en-US", { weekday: "short" });
+                  const dayNum = d.getDate();
+                  return (
+                    <button
+                      key={offset}
+                      onClick={() => setSelectedDate(dateStr)}
+                      className={`flex flex-col items-center px-3 py-2 rounded-xl transition min-w-[52px] ${
+                        isSelected
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span className="text-[10px] font-semibold uppercase tracking-wide">{dayLabel}</span>
+                      <span className={`text-lg font-bold ${isSelected ? "text-white" : "text-slate-700"}`}>{dayNum}</span>
+                    </button>
+                  );
+                })}
+                <div className="relative ml-1">
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="flex flex-col items-center px-3 py-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition min-w-[52px] cursor-pointer">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide">More</span>
+                    <span className="text-lg font-bold">📅</span>
+                  </div>
+                </div>
+              </div>
             </div>
+
             <button
               onClick={() => shiftDate(1)}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-[#e8eaef] border border-slate-200/60 hover:bg-[#dfe2e8] transition text-slate-500"
+              className="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition text-slate-500 text-lg font-medium"
             >
-              →
+              ›
             </button>
           </div>
-          <button
-            onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
-            className="px-4 py-2 text-sm font-medium text-slate-500 bg-[#e8eaef] border border-slate-200/60 rounded-lg hover:bg-[#dfe2e8] transition"
-          >
-            Today
-          </button>
         </div>
 
         {/* Stats Cards */}
