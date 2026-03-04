@@ -18,6 +18,92 @@ function parseArgs(args: any): Record<string, any> {
   return args || {};
 }
 
+function resolveRelativeDate(description: string): { date: string; spoken: string } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
+  
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+  
+  const lower = description.toLowerCase().trim();
+  let target: Date | null = null;
+
+  if (lower === "today") {
+    target = today;
+  } else if (lower === "tomorrow") {
+    target = new Date(today);
+    target.setDate(target.getDate() + 1);
+  } else {
+    // Handle "this X" or "next X" or just a day name
+    const dayMap: Record<string, number> = {
+      sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+      thursday: 4, friday: 5, saturday: 6,
+    };
+    
+    let targetDay: number | null = null;
+    let isNext = false;
+    
+    for (const [name, num] of Object.entries(dayMap)) {
+      if (lower.includes(name)) {
+        targetDay = num;
+        isNext = lower.includes("next");
+        break;
+      }
+    }
+    
+    if (targetDay !== null) {
+      let daysAhead = targetDay - dayOfWeek;
+      if (daysAhead <= 0) daysAhead += 7;
+      if (isNext && daysAhead <= 7) daysAhead += 7; // "next" means the week after
+      // Actually, "next Friday" when today is Wednesday should be this coming Friday (2 days)
+      // unless you interpret "next" as the one after "this". Common interpretation:
+      // If today is Wed, "this Friday" = 2 days, "next Friday" = 9 days
+      // But many people say "next Friday" to mean the coming Friday.
+      // Let's use: if the day is within the current week (Sun-Sat), "next" means next week
+      // Simple: "next" always adds 7 if the day hasn't passed yet this week
+      if (isNext) {
+        // Reset and calculate for next week's occurrence
+        daysAhead = targetDay - dayOfWeek;
+        if (daysAhead <= 0) daysAhead += 7;
+        // If the day is still ahead this week, "next" means the following week
+        if (daysAhead > 0 && daysAhead < 7) daysAhead += 7;
+        // Edge case: if daysAhead was exactly 7 (same day next week), keep it
+      }
+      
+      target = new Date(today);
+      target.setDate(target.getDate() + daysAhead);
+    }
+  }
+  
+  if (!target) {
+    // Try to parse as a date string
+    const parsed = new Date(description);
+    if (!isNaN(parsed.getTime())) {
+      target = parsed;
+    } else {
+      // Return today as fallback
+      target = today;
+    }
+  }
+  
+  const yyyy = target.getFullYear();
+  const mm = String(target.getMonth() + 1).padStart(2, "0");
+  const dd = String(target.getDate()).padStart(2, "0");
+  const dateStr = `${yyyy}-${mm}-${dd}`;
+  
+  const ordinal = (n: number) => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+  
+  const spoken = `${dayNames[target.getDay()]}, ${monthNames[target.getMonth()]} ${ordinal(target.getDate())}`;
+  
+  return { date: dateStr, spoken };
+}
+
 // This endpoint is called by Vapi when the AI needs to check/make reservations
 export async function POST(req: NextRequest) {
   try {
@@ -40,6 +126,17 @@ export async function POST(req: NextRequest) {
         let result;
 
         switch (name) {
+          case "resolve_date": {
+            const { description } = args;
+            const resolved = resolveRelativeDate(description);
+            result = {
+              date: resolved.date,
+              spoken: resolved.spoken,
+              message: `The date is ${resolved.spoken} (${resolved.date}). Always say it as "${resolved.spoken}" to the caller.`,
+            };
+            break;
+          }
+
           case "check_availability": {
             const { date, time, party_size, section } = args;
             const availability = checkAvailability(date, time, party_size, section);
@@ -86,7 +183,7 @@ export async function POST(req: NextRequest) {
             } else {
               result = {
                 success: true,
-                message: `Reservation confirmed! ${guest_name}, party of ${party_size}, on ${date} at ${time}. Confirmation ID: ${reservation.id}.`,
+                message: `Reservation confirmed! ${guest_name}, party of ${party_size}, on ${date} at ${time}.`,
                 reservationId: reservation.id,
               };
             }
