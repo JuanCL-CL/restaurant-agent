@@ -266,125 +266,132 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        {/* Sections */}
+        {/* Sections & Tables */}
         <div className="bg-white rounded-xl shadow-sm border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Seating Sections</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Define the different areas of your restaurant (e.g., Indoor, Patio, Upstairs, Bar).
-            Callers can request a specific section.
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Seating Layout</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Define sections and tables. The AI uses this to check availability and seat callers.
           </p>
 
-          <div className="space-y-2 mb-4">
-            {sections.map((section) => (
-              <div key={section.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
-                <div>
-                  <p className="font-medium text-gray-900">{section.name}</p>
-                  {section.description && <p className="text-sm text-gray-500">{section.description}</p>}
-                  <p className="text-xs text-gray-400">
-                    {tables.filter((t) => t.section_id === section.id).length} tables
-                  </p>
-                </div>
-                <button
-                  onClick={() => removeSection(section.id)}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Section name (e.g., Upstairs)"
-              value={newSection.name}
-              onChange={(e) => setNewSection({ ...newSection, name: e.target.value })}
-              className="flex-1 border rounded-lg px-3 py-2 text-sm text-gray-900"
-            />
-            <input
-              type="text"
-              placeholder="Description (optional)"
-              value={newSection.description}
-              onChange={(e) => setNewSection({ ...newSection, description: e.target.value })}
-              className="flex-1 border rounded-lg px-3 py-2 text-sm text-gray-900"
-            />
-            <button
-              onClick={addSection}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium whitespace-nowrap"
-            >
-              + Add Section
-            </button>
-          </div>
-        </div>
-
-        {/* Tables */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tables</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Add each table with its capacity and assign it to a section. The AI will match callers to the right table size.
-          </p>
-
-          {sections.map((section) => {
-            const sectionTables = tables.filter((t) => t.section_id === section.id);
-            return (
-              <div key={section.id} className="mb-6">
-                <h3 className="text-md font-medium text-gray-700 mb-2">{section.name}</h3>
-                {sectionTables.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic mb-2">No tables in this section</p>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                    {sectionTables.map((table) => (
-                      <div key={table.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{table.name}</p>
-                          <p className="text-xs text-gray-500">Seats {table.capacity}</p>
-                        </div>
-                        <button
-                          onClick={() => removeTable(table.id)}
-                          className="text-red-400 hover:text-red-600 text-xs"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+          <div className="space-y-4 mb-6">
+            {sections.map((section) => {
+              const sectionTables = tables.filter((t) => t.section_id === section.id);
+              return (
+                <div key={section.id} className="border rounded-xl overflow-hidden">
+                  {/* Section header */}
+                  <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900">{section.name}</p>
+                      {section.description && <p className="text-xs text-gray-500">{section.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-500">
+                        {sectionTables.length} table{sectionTables.length !== 1 ? "s" : ""} · {sectionTables.reduce((s, t) => s + t.capacity, 0)} seats
+                      </span>
+                      <button
+                        onClick={() => removeSection(section.id)}
+                        className="text-red-400 hover:text-red-600 text-xs font-medium"
+                      >
+                        Delete Section
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
 
-          <div className="flex gap-2 mt-4 pt-4 border-t">
-            <input
-              type="text"
-              placeholder="Table name"
-              value={newTable.name}
-              onChange={(e) => setNewTable({ ...newTable, name: e.target.value })}
-              className="flex-1 border rounded-lg px-3 py-2 text-sm text-gray-900"
-            />
-            <input
-              type="number"
-              placeholder="Seats"
-              value={newTable.capacity}
-              onChange={(e) => setNewTable({ ...newTable, capacity: parseInt(e.target.value) || 2 })}
-              className="w-20 border rounded-lg px-3 py-2 text-sm text-gray-900"
-            />
-            <select
-              value={newTable.section_id}
-              onChange={(e) => setNewTable({ ...newTable, section_id: e.target.value })}
-              className="border rounded-lg px-3 py-2 text-sm text-gray-900"
-            >
-              <option value="">Section...</option>
-              {sections.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            <button
-              onClick={addTable}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium whitespace-nowrap"
-            >
-              + Add Table
-            </button>
+                  {/* Tables in this section */}
+                  <div className="p-4">
+                    {sectionTables.length === 0 ? (
+                      <p className="text-sm text-gray-400 italic">No tables yet — add one below</p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
+                        {sectionTables.map((table) => (
+                          <div key={table.id} className="flex items-center justify-between bg-white border rounded-lg px-3 py-2 group">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-900">{table.name}</span>
+                              <span className="text-xs text-gray-400">({table.capacity} seats)</span>
+                            </div>
+                            <button
+                              onClick={() => removeTable(table.id)}
+                              className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Quick add table to this section */}
+                    <div className="flex gap-2 pt-2 border-t border-dashed">
+                      <input
+                        type="text"
+                        placeholder={`New table name (e.g., ${section.name} ${sectionTables.length + 1})`}
+                        id={`new-table-name-${section.id}`}
+                        className="flex-1 border rounded-lg px-3 py-1.5 text-sm text-gray-900"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Seats"
+                        defaultValue={4}
+                        id={`new-table-cap-${section.id}`}
+                        className="w-20 border rounded-lg px-3 py-1.5 text-sm text-gray-900"
+                      />
+                      <button
+                        onClick={async () => {
+                          const nameEl = document.getElementById(`new-table-name-${section.id}`) as HTMLInputElement;
+                          const capEl = document.getElementById(`new-table-cap-${section.id}`) as HTMLInputElement;
+                          const name = nameEl?.value?.trim();
+                          const capacity = parseInt(capEl?.value) || 4;
+                          if (!name) return;
+                          try {
+                            const res = await fetch("/api/settings", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "create_table", name, capacity, section_id: section.id }),
+                            });
+                            const data = await res.json();
+                            if (data.table) {
+                              setTables([...tables, data.table]);
+                              nameEl.value = "";
+                              showMessage(`"${name}" added to ${section.name}!`);
+                            }
+                          } catch { showMessage("Failed to add table"); }
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add new section */}
+          <div className="pt-4 border-t">
+            <p className="text-sm font-medium text-gray-700 mb-2">Add New Section</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Section name (e.g., Upstairs, Rooftop)"
+                value={newSection.name}
+                onChange={(e) => setNewSection({ ...newSection, name: e.target.value })}
+                className="flex-1 border rounded-lg px-3 py-2 text-sm text-gray-900"
+              />
+              <input
+                type="text"
+                placeholder="Description (optional)"
+                value={newSection.description}
+                onChange={(e) => setNewSection({ ...newSection, description: e.target.value })}
+                className="flex-1 border rounded-lg px-3 py-2 text-sm text-gray-900"
+              />
+              <button
+                onClick={addSection}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium whitespace-nowrap"
+              >
+                + Add Section
+              </button>
+            </div>
           </div>
         </div>
       </main>
