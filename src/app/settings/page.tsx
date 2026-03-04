@@ -246,15 +246,7 @@ export default function SettingsPage() {
                 className="w-full border rounded-lg px-3 py-2 text-gray-900"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reservation Duration (min)</label>
-              <input
-                type="number"
-                value={settings.reservation_duration_minutes}
-                onChange={(e) => setSettings({ ...settings, reservation_duration_minutes: parseInt(e.target.value) || 90 })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
-            </div>
+
           </div>
 
           <button
