@@ -145,12 +145,9 @@ export default function Dashboard() {
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           sectionColors[
-                            reservation.table_id.startsWith("t8") ||
-                            reservation.table_id.startsWith("t9") ||
-                            reservation.table_id.startsWith("t10")
+                            ["t8", "t9", "t10"].includes(reservation.table_id)
                               ? "outdoor"
-                              : reservation.table_id.startsWith("t11") ||
-                                reservation.table_id.startsWith("t12")
+                              : ["t11", "t12"].includes(reservation.table_id)
                               ? "bar"
                               : reservation.table_id === "t7"
                               ? "private"
@@ -158,7 +155,13 @@ export default function Dashboard() {
                           ] || "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {reservation.table_id}
+                        {["t8", "t9", "t10"].includes(reservation.table_id)
+                          ? "Outdoor"
+                          : ["t11", "t12"].includes(reservation.table_id)
+                          ? "Bar"
+                          : reservation.table_id === "t7"
+                          ? "Private"
+                          : "Indoor"}
                       </span>
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Confirmed
