@@ -9,6 +9,7 @@ interface Reservation {
   date: string;
   time: string;
   table_id: string;
+  section_name?: string;
   special_requests?: string;
   phone?: string;
   status: string;
@@ -62,9 +63,17 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold text-gray-900">🍽️ TableCall</h1>
             <p className="text-sm text-gray-500">AI-Powered Restaurant Reservations</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="text-sm text-gray-600">Agent Active</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+              <span className="text-sm text-gray-600">Agent Active</span>
+            </div>
+            <a
+              href="/settings"
+              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+            >
+              ⚙️ Settings
+            </a>
           </div>
         </div>
       </header>
@@ -144,24 +153,10 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3">
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          sectionColors[
-                            ["t8", "t9", "t10"].includes(reservation.table_id)
-                              ? "outdoor"
-                              : ["t11", "t12"].includes(reservation.table_id)
-                              ? "bar"
-                              : reservation.table_id === "t7"
-                              ? "private"
-                              : "indoor"
-                          ] || "bg-gray-100 text-gray-800"
+                          sectionColors[(reservation.section_name || "indoor").toLowerCase()] || "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {["t8", "t9", "t10"].includes(reservation.table_id)
-                          ? "Outdoor"
-                          : ["t11", "t12"].includes(reservation.table_id)
-                          ? "Bar"
-                          : reservation.table_id === "t7"
-                          ? "Private"
-                          : "Indoor"}
+                        {reservation.section_name || "—"}
                       </span>
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Confirmed
