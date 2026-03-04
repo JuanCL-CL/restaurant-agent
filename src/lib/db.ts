@@ -1,5 +1,4 @@
-// Simple in-memory database for MVP — swap for a real DB later
-// Each restaurant has tables and reservations
+import { sql } from "@vercel/postgres";
 
 export interface Table {
   id: string;
@@ -10,59 +9,66 @@ export interface Table {
 
 export interface Reservation {
   id: string;
-  guestName: string;
-  partySize: number;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
-  tableId: string;
-  specialRequests?: string;
+  guest_name: string;
+  party_size: number;
+  date: string;
+  time: string;
+  table_id: string;
+  special_requests?: string;
   phone?: string;
   status: "confirmed" | "cancelled";
-  createdAt: string;
+  created_at: string;
 }
 
-// Default restaurant tables
-const tables: Table[] = [
-  { id: "t1", name: "Table 1", capacity: 2, section: "indoor" },
-  { id: "t2", name: "Table 2", capacity: 2, section: "indoor" },
-  { id: "t3", name: "Table 3", capacity: 4, section: "indoor" },
-  { id: "t4", name: "Table 4", capacity: 4, section: "indoor" },
-  { id: "t5", name: "Table 5", capacity: 6, section: "indoor" },
-  { id: "t6", name: "Table 6", capacity: 6, section: "indoor" },
-  { id: "t7", name: "Table 7", capacity: 8, section: "private" },
-  { id: "t8", name: "Patio 1", capacity: 4, section: "outdoor" },
-  { id: "t9", name: "Patio 2", capacity: 4, section: "outdoor" },
-  { id: "t10", name: "Patio 3", capacity: 6, section: "outdoor" },
-  { id: "t11", name: "Bar 1", capacity: 2, section: "bar" },
-  { id: "t12", name: "Bar 2", capacity: 2, section: "bar" },
-];
+// Initialize database tables
+export async function initDB() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS tables (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      capacity INTEGER NOT NULL,
+      section TEXT NOT NULL
+    )
+  `;
 
-// In-memory reservations store
-const reservations: Reservation[] = [
-  // Seed with a few sample reservations
-  {
-    id: "r1",
-    guestName: "Smith Family",
-    partySize: 4,
-    date: "2026-03-04",
-    time: "19:00",
-    tableId: "t3",
-    status: "confirmed",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "r2",
-    guestName: "Johnson",
-    partySize: 2,
-    date: "2026-03-04",
-    time: "19:00",
-    tableId: "t1",
-    status: "confirmed",
-    createdAt: new Date().toISOString(),
-  },
-];
+  await sql`
+    CREATE TABLE IF NOT EXISTS reservations (
+      id TEXT PRIMARY KEY,
+      guest_name TEXT NOT NULL,
+      party_size INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      table_id TEXT NOT NULL,
+      special_requests TEXT,
+      phone TEXT,
+      status TEXT NOT NULL DEFAULT 'confirmed',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
 
-// Reservation duration in hours (assumed 1.5 hours per reservation)
+  // Seed default tables if empty
+  const { rows } = await sql`SELECT COUNT(*) as count FROM tables`;
+  if (parseInt(rows[0].count) === 0) {
+    const defaultTables = [
+      { id: "t1", name: "Table 1", capacity: 2, section: "indoor" },
+      { id: "t2", name: "Table 2", capacity: 2, section: "indoor" },
+      { id: "t3", name: "Table 3", capacity: 4, section: "indoor" },
+      { id: "t4", name: "Table 4", capacity: 4, section: "indoor" },
+      { id: "t5", name: "Table 5", capacity: 6, section: "indoor" },
+      { id: "t6", name: "Table 6", capacity: 6, section: "indoor" },
+      { id: "t7", name: "Table 7", capacity: 8, section: "private" },
+      { id: "t8", name: "Patio 1", capacity: 4, section: "outdoor" },
+      { id: "t9", name: "Patio 2", capacity: 4, section: "outdoor" },
+      { id: "t10", name: "Patio 3", capacity: 6, section: "outdoor" },
+      { id: "t11", name: "Bar 1", capacity: 2, section: "bar" },
+      { id: "t12", name: "Bar 2", capacity: 2, section: "bar" },
+    ];
+    for (const t of defaultTables) {
+      await sql`INSERT INTO tables (id, name, capacity, section) VALUES (${t.id}, ${t.name}, ${t.capacity}, ${t.section})`;
+    }
+  }
+}
+
 const RESERVATION_DURATION_HOURS = 1.5;
 
 function timeToMinutes(time: string): number {
@@ -77,69 +83,75 @@ function timesOverlap(time1: string, time2: string): boolean {
   return Math.abs(mins1 - mins2) < durationMins;
 }
 
-export function getTables(): Table[] {
-  return tables;
+export async function getTables(): Promise<Table[]> {
+  await initDB();
+  const { rows } = await sql`SELECT * FROM tables ORDER BY id`;
+  return rows as Table[];
 }
 
-export function getReservations(date?: string): Reservation[] {
+export async function getReservations(date?: string): Promise<Reservation[]> {
+  await initDB();
   if (date) {
-    return reservations.filter((r) => r.date === date && r.status === "confirmed");
+    const { rows } = await sql`SELECT * FROM reservations WHERE date = ${date} AND status = 'confirmed' ORDER BY time`;
+    return rows as Reservation[];
   }
-  return reservations.filter((r) => r.status === "confirmed");
+  const { rows } = await sql`SELECT * FROM reservations WHERE status = 'confirmed' ORDER BY date, time`;
+  return rows as Reservation[];
 }
 
-export function checkAvailability(
+export async function checkAvailability(
   date: string,
   time: string,
   partySize: number,
   section?: string
-): { available: boolean; tables: Table[]; alternativeTimes?: string[] } {
-  // Find tables that can fit the party
-  let suitableTables = tables.filter((t) => t.capacity >= partySize);
+): Promise<{ available: boolean; tables: Table[]; alternativeTimes?: string[] }> {
+  await initDB();
 
-  // Filter by section if requested
+  // Find suitable tables
+  let tables: Table[];
   if (section) {
-    suitableTables = suitableTables.filter((t) => t.section === section);
+    const { rows } = await sql`SELECT * FROM tables WHERE capacity >= ${partySize} AND section = ${section}`;
+    tables = rows as Table[];
+  } else {
+    const { rows } = await sql`SELECT * FROM tables WHERE capacity >= ${partySize}`;
+    tables = rows as Table[];
   }
 
-  // Find which tables are booked at the requested time
-  const dateReservations = reservations.filter(
-    (r) => r.date === date && r.status === "confirmed"
-  );
+  // Get reservations for that date
+  const { rows: dateReservations } = await sql`
+    SELECT * FROM reservations WHERE date = ${date} AND status = 'confirmed'
+  `;
 
-  const availableTables = suitableTables.filter((table) => {
-    const tableReservations = dateReservations.filter((r) => r.tableId === table.id);
-    return !tableReservations.some((r) => timesOverlap(r.time, time));
+  const availableTables = tables.filter((table) => {
+    const tableRes = dateReservations.filter((r) => r.table_id === table.id);
+    return !tableRes.some((r) => timesOverlap(r.time, time));
   });
 
   if (availableTables.length > 0) {
     return { available: true, tables: availableTables };
   }
 
-  // Suggest alternative times (check 30-min increments around requested time)
+  // Suggest alternatives
   const requestedMins = timeToMinutes(time);
   const alternativeTimes: string[] = [];
-  
+
   for (const offset of [-60, -30, 30, 60, 90, 120]) {
     const altMins = requestedMins + offset;
-    if (altMins < 660 || altMins > 1290) continue; // 11 AM to 9:30 PM
-    
+    if (altMins < 660 || altMins > 1290) continue;
     const altTime = `${Math.floor(altMins / 60).toString().padStart(2, "0")}:${(altMins % 60).toString().padStart(2, "0")}`;
-    
-    const altAvailable = suitableTables.some((table) => {
-      const tableReservations = dateReservations.filter((r) => r.tableId === table.id);
-      return !tableReservations.some((r) => timesOverlap(r.time, altTime));
+
+    const altAvailable = tables.some((table) => {
+      const tableRes = dateReservations.filter((r) => r.table_id === table.id);
+      return !tableRes.some((r) => timesOverlap(r.time, altTime));
     });
-    
-    if (altAvailable) {
-      alternativeTimes.push(altTime);
-    }
+
+    if (altAvailable) alternativeTimes.push(altTime);
   }
 
   return { available: false, tables: [], alternativeTimes };
 }
 
-export function createReservation(
+export async function createReservation(
   guestName: string,
   partySize: number,
   date: string,
@@ -147,8 +159,8 @@ export function createReservation(
   specialRequests?: string,
   phone?: string,
   preferredSection?: string
-): Reservation | { error: string; alternativeTimes?: string[] } {
-  const availability = checkAvailability(date, time, partySize, preferredSection);
+): Promise<Reservation | { error: string; alternativeTimes?: string[] }> {
+  const availability = await checkAvailability(date, time, partySize, preferredSection);
 
   if (!availability.available) {
     return {
@@ -157,57 +169,63 @@ export function createReservation(
     };
   }
 
-  // Pick the smallest suitable available table
   const table = availability.tables.sort((a, b) => a.capacity - b.capacity)[0];
+  const id = `r${Date.now()}`;
 
-  const reservation: Reservation = {
-    id: `r${Date.now()}`,
-    guestName,
-    partySize,
-    date,
-    time,
-    tableId: table.id,
-    specialRequests,
-    phone,
-    status: "confirmed",
-    createdAt: new Date().toISOString(),
-  };
+  await sql`
+    INSERT INTO reservations (id, guest_name, party_size, date, time, table_id, special_requests, phone, status)
+    VALUES (${id}, ${guestName}, ${partySize}, ${date}, ${time}, ${table.id}, ${specialRequests || null}, ${phone || null}, 'confirmed')
+  `;
 
-  reservations.push(reservation);
-  return reservation;
+  const { rows } = await sql`SELECT * FROM reservations WHERE id = ${id}`;
+  return rows[0] as Reservation;
 }
 
-export function updateReservation(
+export async function updateReservation(
   reservationId: string,
-  updates: Partial<Pick<Reservation, "guestName" | "partySize" | "date" | "time" | "specialRequests" | "phone">>
-): Reservation | { error: string } {
-  const reservation = reservations.find((r) => r.id === reservationId && r.status === "confirmed");
-  if (!reservation) {
-    return { error: "Reservation not found." };
-  }
-  if (updates.guestName) reservation.guestName = updates.guestName;
-  if (updates.partySize) reservation.partySize = updates.partySize;
-  if (updates.date) reservation.date = updates.date;
-  if (updates.time) reservation.time = updates.time;
-  if (updates.specialRequests !== undefined) reservation.specialRequests = updates.specialRequests;
-  if (updates.phone) reservation.phone = updates.phone;
-  return reservation;
+  updates: { guestName?: string; partySize?: number; date?: string; time?: string; specialRequests?: string; phone?: string }
+): Promise<Reservation | { error: string }> {
+  await initDB();
+  const { rows } = await sql`SELECT * FROM reservations WHERE id = ${reservationId} AND status = 'confirmed'`;
+  if (rows.length === 0) return { error: "Reservation not found." };
+
+  const r = rows[0];
+  const newName = updates.guestName || r.guest_name;
+  const newSize = updates.partySize || r.party_size;
+  const newDate = updates.date || r.date;
+  const newTime = updates.time || r.time;
+  const newRequests = updates.specialRequests !== undefined ? updates.specialRequests : r.special_requests;
+  const newPhone = updates.phone || r.phone;
+
+  await sql`
+    UPDATE reservations
+    SET guest_name = ${newName}, party_size = ${newSize}, date = ${newDate}, time = ${newTime},
+        special_requests = ${newRequests}, phone = ${newPhone}
+    WHERE id = ${reservationId}
+  `;
+
+  const { rows: updated } = await sql`SELECT * FROM reservations WHERE id = ${reservationId}`;
+  return updated[0] as Reservation;
 }
 
-export function cancelReservation(reservationId: string): boolean {
-  const reservation = reservations.find((r) => r.id === reservationId);
-  if (reservation) {
-    reservation.status = "cancelled";
-    return true;
-  }
-  return false;
+export async function cancelReservation(reservationId: string): Promise<boolean> {
+  await initDB();
+  const { rowCount } = await sql`UPDATE reservations SET status = 'cancelled' WHERE id = ${reservationId} AND status = 'confirmed'`;
+  return (rowCount ?? 0) > 0;
 }
 
-export function findReservation(guestName: string, date?: string): Reservation[] {
-  return reservations.filter(
-    (r) =>
-      r.guestName.toLowerCase().includes(guestName.toLowerCase()) &&
-      r.status === "confirmed" &&
-      (!date || r.date === date)
-  );
+export async function findReservation(guestName: string, date?: string): Promise<Reservation[]> {
+  await initDB();
+  if (date) {
+    const { rows } = await sql`
+      SELECT * FROM reservations
+      WHERE LOWER(guest_name) LIKE ${'%' + guestName.toLowerCase() + '%'} AND date = ${date} AND status = 'confirmed'
+    `;
+    return rows as Reservation[];
+  }
+  const { rows } = await sql`
+    SELECT * FROM reservations
+    WHERE LOWER(guest_name) LIKE ${'%' + guestName.toLowerCase() + '%'} AND status = 'confirmed'
+  `;
+  return rows as Reservation[];
 }

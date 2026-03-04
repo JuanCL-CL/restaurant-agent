@@ -5,6 +5,7 @@ import {
   findReservation,
   cancelReservation,
   updateReservation,
+  initDB,
 } from "@/lib/db";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +141,7 @@ export async function POST(req: NextRequest) {
 
           case "check_availability": {
             const { date, time, party_size, section } = args;
-            const availability = checkAvailability(date, time, party_size, section);
+            const availability = await checkAvailability(date, time, party_size, section);
 
             if (availability.available) {
               const sections = [...new Set(availability.tables.map((t) => t.section))];
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
 
           case "make_reservation": {
             const { guest_name, party_size, date, time, special_requests, phone, section } = args;
-            const reservation = createReservation(
+            const reservation = await createReservation(
               guest_name,
               party_size,
               date,
@@ -193,18 +194,18 @@ export async function POST(req: NextRequest) {
 
           case "find_reservation": {
             const { guest_name, date } = args;
-            const reservations = findReservation(guest_name, date);
+            const reservations = await findReservation(guest_name, date);
 
             if (reservations.length > 0) {
               result = {
                 found: true,
                 reservations: reservations.map((r) => ({
                   id: r.id,
-                  name: r.guestName,
-                  partySize: r.partySize,
+                  name: r.guest_name,
+                  partySize: r.party_size,
                   date: r.date,
                   time: r.time,
-                  specialRequests: r.specialRequests,
+                  specialRequests: r.special_requests,
                 })),
               };
             } else {
@@ -225,13 +226,13 @@ export async function POST(req: NextRequest) {
             if (time) updates.time = time;
             if (special_requests !== undefined) updates.specialRequests = special_requests;
             
-            const updated = updateReservation(reservation_id, updates);
+            const updated = await updateReservation(reservation_id, updates);
             if ("error" in updated) {
               result = { success: false, message: updated.error };
             } else {
               result = {
                 success: true,
-                message: `Reservation updated! Now under ${updated.guestName}, party of ${updated.partySize}, on ${updated.date} at ${updated.time}.`,
+                message: `Reservation updated! Now under ${updated.guest_name}, party of ${updated.party_size}, on ${updated.date} at ${updated.time}.`,
               };
             }
             break;
@@ -239,7 +240,7 @@ export async function POST(req: NextRequest) {
 
           case "cancel_reservation": {
             const { reservation_id } = args;
-            const success = cancelReservation(reservation_id);
+            const success = await cancelReservation(reservation_id);
             result = {
               success,
               message: success
