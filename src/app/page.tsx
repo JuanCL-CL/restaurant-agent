@@ -4,15 +4,15 @@ import { useState, useEffect } from "react";
 
 interface Reservation {
   id: string;
-  guestName: string;
-  partySize: number;
+  guest_name: string;
+  party_size: number;
   date: string;
   time: string;
-  tableId: string;
-  specialRequests?: string;
+  table_id: string;
+  special_requests?: string;
   phone?: string;
   status: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export default function Dashboard() {
@@ -79,7 +79,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl p-5 shadow-sm border">
             <p className="text-sm text-gray-500">Total Guests</p>
             <p className="text-3xl font-bold text-gray-900">
-              {reservations.reduce((sum, r) => sum + r.partySize, 0)}
+              {reservations.reduce((sum, r) => sum + r.party_size, 0)}
             </p>
           </div>
           <div className="bg-white rounded-xl p-5 shadow-sm border">
@@ -132,12 +132,12 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">
-                          {reservation.guestName}
+                          {reservation.guest_name}
                         </p>
                         <p className="text-sm text-gray-500">
-                          Party of {reservation.partySize}
-                          {reservation.specialRequests &&
-                            ` · ${reservation.specialRequests}`}
+                          Party of {reservation.party_size}
+                          {reservation.special_requests &&
+                            ` · ${reservation.special_requests}`}
                         </p>
                       </div>
                     </div>
@@ -145,20 +145,20 @@ export default function Dashboard() {
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           sectionColors[
-                            reservation.tableId.startsWith("t8") ||
-                            reservation.tableId.startsWith("t9") ||
-                            reservation.tableId.startsWith("t10")
+                            reservation.table_id.startsWith("t8") ||
+                            reservation.table_id.startsWith("t9") ||
+                            reservation.table_id.startsWith("t10")
                               ? "outdoor"
-                              : reservation.tableId.startsWith("t11") ||
-                                reservation.tableId.startsWith("t12")
+                              : reservation.table_id.startsWith("t11") ||
+                                reservation.table_id.startsWith("t12")
                               ? "bar"
-                              : reservation.tableId === "t7"
+                              : reservation.table_id === "t7"
                               ? "private"
                               : "indoor"
                           ] || "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {reservation.tableId}
+                        {reservation.table_id}
                       </span>
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Confirmed
