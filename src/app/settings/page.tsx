@@ -181,7 +181,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-[#eef0f4]">
       {/* Header */}
       <header className="bg-[#ffffff]/90 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">⚙️ Settings</h1>
             <p className="text-sm text-slate-400">Configure your restaurant</p>
@@ -204,7 +204,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-[#ffffff] rounded-2xl p-5 border border-slate-200/60 text-center">
@@ -355,7 +355,7 @@ export default function SettingsPage() {
                 <FloorplanCanvas
                   tables={tables.filter((t) => t.section_id === (floorplanSectionId ?? sections[0]?.id))}
                   editable={true}
-                  heightPx={480}
+                  heightPx={680}
                   onChange={(updated) => {
                     const otherTables = tables.filter((t) => t.section_id !== (floorplanSectionId ?? sections[0]?.id));
                     setTables([...otherTables, ...updated]);
