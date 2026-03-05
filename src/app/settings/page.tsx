@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import FloorplanCanvas from "@/components/FloorplanCanvas";
 
 interface Section {
   id: string;
@@ -16,6 +17,10 @@ interface Table {
   capacity: number;
   section_id: string;
   section_name?: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
 }
 
 interface Settings {
@@ -38,8 +43,10 @@ export default function SettingsPage() {
   });
   const [sections, setSections] = useState<Section[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
+  const [floorplanSectionId, setFloorplanSectionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingLayout, setSavingLayout] = useState(false);
   const [newSection, setNewSection] = useState({ name: "", description: "" });
   const [message, setMessage] = useState("");
 
@@ -53,7 +60,10 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings");
       const data = await res.json();
       if (data.settings) setSettings(data.settings);
-      if (data.sections) setSections(data.sections);
+      if (data.sections) {
+        setSections(data.sections);
+        setFloorplanSectionId((prev) => prev ?? (data.sections?.[0]?.id ?? null));
+      }
       if (data.tables) setTables(data.tables);
     } catch {
       console.error("Failed to load settings");
@@ -122,6 +132,33 @@ export default function SettingsPage() {
     } catch {
       showMessage("❌ Failed to remove table");
     }
+  }
+
+  async function saveFloorplanLayout(sectionId: string) {
+    setSavingLayout(true);
+    try {
+      const sectionTables = tables.filter((t) => t.section_id === sectionId);
+      await Promise.all(
+        sectionTables.map((t) =>
+          fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "update_table",
+              id: t.id,
+              x: t.x,
+              y: t.y,
+              w: t.w,
+              h: t.h,
+            }),
+          })
+        )
+      );
+      showMessage("✅ Floorplan saved!");
+    } catch {
+      showMessage("❌ Failed to save floorplan");
+    }
+    setSavingLayout(false);
   }
 
   function showMessage(msg: string) {
@@ -260,7 +297,7 @@ export default function SettingsPage() {
               <button
                 onClick={saveSettings}
                 disabled={saving}
-                className="px-6 py-2.5 bg-blue-600 text-slate-900 rounded-xl hover:bg-blue-700 transition font-medium disabled:opacity-50"
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>
@@ -268,7 +305,68 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Seating Layout */}
+        {/* Floorplan Editor */}
+        <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">🗺️ Floorplan Editor</h2>
+              <p className="text-sm text-slate-400">Drag tables to position them. Drag the bottom-right corner to resize.</p>
+            </div>
+            <button
+              onClick={() => {
+                if (floorplanSectionId) saveFloorplanLayout(floorplanSectionId);
+              }}
+              disabled={savingLayout || !floorplanSectionId}
+              className="px-5 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50"
+            >
+              {savingLayout ? "Saving…" : "Save Layout"}
+            </button>
+          </div>
+          <div className="p-6">
+            {sections.length === 0 ? (
+              <div className="py-10 text-center text-slate-400">Add a section below first, then arrange tables here.</div>
+            ) : (
+              <>
+                {/* Section tabs */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4">
+                  {sections
+                    .slice()
+                    .sort((a, b) => a.display_order - b.display_order)
+                    .map((s) => {
+                      const active = (floorplanSectionId ?? sections[0]?.id) === s.id;
+                      const count = tables.filter((t) => t.section_id === s.id).length;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setFloorplanSectionId(s.id)}
+                          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition whitespace-nowrap ${
+                            active
+                              ? "bg-slate-900 text-white border-slate-900"
+                              : "bg-white text-slate-600 border-slate-200/60 hover:bg-slate-50"
+                          }`}
+                        >
+                          {s.name} ({count})
+                        </button>
+                      );
+                    })}
+                </div>
+
+                {/* Canvas */}
+                <FloorplanCanvas
+                  tables={tables.filter((t) => t.section_id === (floorplanSectionId ?? sections[0]?.id))}
+                  editable={true}
+                  heightPx={480}
+                  onChange={(updated) => {
+                    const otherTables = tables.filter((t) => t.section_id !== (floorplanSectionId ?? sections[0]?.id));
+                    setTables([...otherTables, ...updated]);
+                  }}
+                />
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Seating Layout (table list) */}
         <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">🪑 Seating Layout</h2>
@@ -336,7 +434,7 @@ export default function SettingsPage() {
                               </select>
                               <button
                                 onClick={() => removeTable(table.id)}
-                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-slate-900 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                               >
                                 ×
                               </button>
@@ -414,7 +512,7 @@ export default function SettingsPage() {
                 />
                 <button
                   onClick={addSection}
-                  className="px-5 py-2.5 bg-emerald-600 text-slate-900 rounded-xl hover:bg-emerald-700 transition text-sm font-semibold whitespace-nowrap"
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition text-sm font-semibold whitespace-nowrap"
                 >
                   + Add Section
                 </button>

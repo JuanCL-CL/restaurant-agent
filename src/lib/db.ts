@@ -13,6 +13,11 @@ export interface Table {
   capacity: number;
   section_id: string;
   section_name?: string;
+  // Floorplan geometry (percent of canvas: 0-100)
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
 }
 
 export interface Reservation {
@@ -72,6 +77,12 @@ export async function initDB() {
     )
   `;
 
+  // Floorplan columns (added later; keep idempotent for existing DBs)
+  await sql`ALTER TABLE tables ADD COLUMN IF NOT EXISTS x DOUBLE PRECISION`;
+  await sql`ALTER TABLE tables ADD COLUMN IF NOT EXISTS y DOUBLE PRECISION`;
+  await sql`ALTER TABLE tables ADD COLUMN IF NOT EXISTS w DOUBLE PRECISION`;
+  await sql`ALTER TABLE tables ADD COLUMN IF NOT EXISTS h DOUBLE PRECISION`;
+
   await sql`
     CREATE TABLE IF NOT EXISTS reservations (
       id TEXT PRIMARY KEY,
@@ -115,8 +126,46 @@ export async function initDB() {
       { id: "t11", name: "Bar 1", capacity: 2, section_id: "bar" },
       { id: "t12", name: "Bar 2", capacity: 2, section_id: "bar" },
     ];
+    const sectionCounters: Record<string, number> = {};
     for (const t of defaultTables) {
-      await sql`INSERT INTO tables (id, name, capacity, section_id) VALUES (${t.id}, ${t.name}, ${t.capacity}, ${t.section_id})`;
+      const idx = sectionCounters[t.section_id] ?? 0;
+      sectionCounters[t.section_id] = idx + 1;
+
+      const col = idx % 3;
+      const row = Math.floor(idx / 3);
+      const x = 6 + col * 30;
+      const y = 8 + row * 22;
+      const w = 22;
+      const h = 18;
+
+      await sql`
+        INSERT INTO tables (id, name, capacity, section_id, x, y, w, h)
+        VALUES (${t.id}, ${t.name}, ${t.capacity}, ${t.section_id}, ${x}, ${y}, ${w}, ${h})
+      `;
+    }
+  }
+
+  // Backfill missing floorplan geometry for existing tables
+  const { rows: missingLayout } = await sql`
+    SELECT id, section_id, name FROM tables
+    WHERE x IS NULL OR y IS NULL OR w IS NULL OR h IS NULL
+    ORDER BY section_id, name
+  `;
+
+  if (missingLayout.length > 0) {
+    const counters: Record<string, number> = {};
+    for (const row of missingLayout as Array<{ id: string; section_id: string }>) {
+      const idx = counters[row.section_id] ?? 0;
+      counters[row.section_id] = idx + 1;
+
+      const col = idx % 3;
+      const r = Math.floor(idx / 3);
+      const x = 6 + col * 30;
+      const y = 8 + r * 22;
+      const w = 22;
+      const h = 18;
+
+      await sql`UPDATE tables SET x = ${x}, y = ${y}, w = ${w}, h = ${h} WHERE id = ${row.id}`;
     }
   }
 }
@@ -201,19 +250,41 @@ export async function getTables(): Promise<Table[]> {
   return rows as Table[];
 }
 
-export async function createTable(name: string, capacity: number, sectionId: string): Promise<Table> {
+export async function createTable(
+  name: string,
+  capacity: number,
+  sectionId: string,
+  layout?: { x?: number; y?: number; w?: number; h?: number }
+): Promise<Table> {
   await initDB();
   const id = `t${Date.now()}`;
-  await sql`INSERT INTO tables (id, name, capacity, section_id) VALUES (${id}, ${name}, ${capacity}, ${sectionId})`;
+  const x = layout?.x ?? 6;
+  const y = layout?.y ?? 8;
+  const w = layout?.w ?? 22;
+  const h = layout?.h ?? 18;
+
+  await sql`
+    INSERT INTO tables (id, name, capacity, section_id, x, y, w, h)
+    VALUES (${id}, ${name}, ${capacity}, ${sectionId}, ${x}, ${y}, ${w}, ${h})
+  `;
+
   const { rows } = await sql`SELECT t.*, s.name as section_name FROM tables t JOIN sections s ON t.section_id = s.id WHERE t.id = ${id}`;
   return rows[0] as Table;
 }
 
-export async function updateTable(id: string, name?: string, capacity?: number, sectionId?: string): Promise<Table> {
+export async function updateTable(
+  id: string,
+  updates: { name?: string; capacity?: number; sectionId?: string; x?: number; y?: number; w?: number; h?: number }
+): Promise<Table> {
   await initDB();
-  if (name !== undefined) await sql`UPDATE tables SET name = ${name} WHERE id = ${id}`;
-  if (capacity !== undefined) await sql`UPDATE tables SET capacity = ${capacity} WHERE id = ${id}`;
-  if (sectionId !== undefined) await sql`UPDATE tables SET section_id = ${sectionId} WHERE id = ${id}`;
+  if (updates.name !== undefined) await sql`UPDATE tables SET name = ${updates.name} WHERE id = ${id}`;
+  if (updates.capacity !== undefined) await sql`UPDATE tables SET capacity = ${updates.capacity} WHERE id = ${id}`;
+  if (updates.sectionId !== undefined) await sql`UPDATE tables SET section_id = ${updates.sectionId} WHERE id = ${id}`;
+  if (updates.x !== undefined) await sql`UPDATE tables SET x = ${updates.x} WHERE id = ${id}`;
+  if (updates.y !== undefined) await sql`UPDATE tables SET y = ${updates.y} WHERE id = ${id}`;
+  if (updates.w !== undefined) await sql`UPDATE tables SET w = ${updates.w} WHERE id = ${id}`;
+  if (updates.h !== undefined) await sql`UPDATE tables SET h = ${updates.h} WHERE id = ${id}`;
+
   const { rows } = await sql`SELECT t.*, s.name as section_name FROM tables t JOIN sections s ON t.section_id = s.id WHERE t.id = ${id}`;
   return rows[0] as Table;
 }

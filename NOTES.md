@@ -22,6 +22,8 @@ When Vapi calls our server with a tool call, the payload looks like:
 
 **Important:** `arguments` is a JSON STRING, not an object. Must `JSON.parse()` it.
 
+**CRITICAL:** When PATCHing the assistant's `model` field, you MUST include `model.tools` alongside `model.messages`. If you only send `messages`, Vapi wipes `tools` to empty. Always read the current assistant first and preserve tools.
+
 Response format:
 ```json
 {
@@ -44,6 +46,10 @@ Response format:
 - Never return long IDs — AI reads them digit by digit  
 - Always provide "spoken" versions of data alongside machine-readable versions
 - LLMs cannot do date math reliably — use server-side resolve_date tool
+- Ask ONE question at a time — never combine "how many, when, what time?" in one breath
+- AI will sometimes fake tool calls (say "let me check" but not actually call the tool) — must add explicit rules forbidding this
+- Disable endCallFunctionEnabled — AI was hanging up mid-conversation
+- Return spoken confirmation in make_reservation result so AI reads it verbatim
 
 ## Vercel Deployment
 

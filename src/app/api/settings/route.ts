@@ -36,11 +36,24 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success });
       }
       case "create_table": {
-        const result = await createTable(body.name, body.capacity, body.section_id);
+        const result = await createTable(body.name, body.capacity, body.section_id, {
+          x: body.x,
+          y: body.y,
+          w: body.w,
+          h: body.h,
+        });
         return NextResponse.json({ table: result });
       }
       case "update_table": {
-        const result = await updateTable(body.id, body.name, body.capacity, body.section_id);
+        const result = await updateTable(body.id, {
+          name: body.name,
+          capacity: body.capacity,
+          sectionId: body.section_id,
+          x: body.x,
+          y: body.y,
+          w: body.w,
+          h: body.h,
+        });
         return NextResponse.json({ table: result });
       }
       case "delete_table": {

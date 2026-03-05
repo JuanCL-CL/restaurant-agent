@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getReservations, getTables } from "@/lib/db";
+import { getReservations, getTables, getSections } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
     const date = req.nextUrl.searchParams.get("date") || undefined;
     const reservations = await getReservations(date);
     const tables = await getTables();
+    const sections = await getSections();
 
     return NextResponse.json({
       reservations,
       tables,
+      sections,
       totalTables: tables.length,
       availableTables: tables.length - reservations.length,
     });

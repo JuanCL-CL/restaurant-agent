@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import FloorplanCanvas from "@/components/FloorplanCanvas";
 
 interface Reservation {
   id: string;
@@ -16,11 +17,31 @@ interface Reservation {
   created_at: string;
 }
 
+interface Table {
+  id: string;
+  name: string;
+  capacity: number;
+  section_id: string;
+  section_name?: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+}
+
+interface Section {
+  id: string;
+  name: string;
+  description?: string;
+  display_order: number;
+}
+
 export default function Dashboard() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [tables, setTables] = useState<Table[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [loading, setLoading] = useState(true);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -30,6 +51,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchReservations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   async function fetchReservations() {
@@ -38,6 +60,9 @@ export default function Dashboard() {
       const res = await fetch(`/api/reservations?date=${selectedDate}`);
       const data = await res.json();
       setReservations(data.reservations || []);
+      setTables(data.tables || []);
+      setSections(data.sections || []);
+      setSelectedSectionId((prev) => prev ?? (data.sections?.[0]?.id ?? null));
     } catch {
       console.error("Failed to fetch reservations");
     }
@@ -84,6 +109,26 @@ export default function Dashboard() {
 
   const sortedSlots = Object.keys(timeSlots).sort();
   const totalGuests = reservations.reduce((sum, r) => sum + r.party_size, 0);
+
+  const reservationsByTableId = reservations.reduce((acc, r) => {
+    if (!acc[r.table_id]) acc[r.table_id] = [];
+    acc[r.table_id].push(r);
+    return acc;
+  }, {} as Record<string, Reservation[]>);
+
+  const tableNameById = tables.reduce((acc, t) => {
+    acc[t.id] = t.name;
+    return acc;
+  }, {} as Record<string, string>);
+
+  const tablesBySection = tables.reduce((acc, t) => {
+    const key = t.section_name || t.section_id || "Other";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(t);
+    return acc;
+  }, {} as Record<string, Table[]>);
+
+  const sectionNames = Object.keys(tablesBySection).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="min-h-screen bg-[#eef0f4]">
@@ -136,7 +181,12 @@ export default function Dashboard() {
                   d.setDate(d.getDate() + offset);
                   const dateStr = d.toISOString().split("T")[0];
                   const isSelected = dateStr === selectedDate;
-                  const dayLabel = offset === 0 ? "Today" : offset === 1 ? "Tmrw" : d.toLocaleDateString("en-US", { weekday: "short" });
+                  const dayLabel =
+                    offset === 0
+                      ? "Today"
+                      : offset === 1
+                      ? "Tmrw"
+                      : d.toLocaleDateString("en-US", { weekday: "short" });
                   const dayNum = d.getDate();
                   return (
                     <button
@@ -295,6 +345,68 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Seating View */}
+        <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 p-6 mb-8">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Floorplan</h3>
+              <p className="text-sm text-slate-400">Tap a table to see its reservations for {formatDateDisplay(selectedDate)}</p>
+            </div>
+            <div className="text-sm text-slate-400">
+              {tables.length} table{tables.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="py-10 text-center text-slate-400">Loading floorplan…</div>
+          ) : tables.length === 0 ? (
+            <div className="py-10 text-center">
+              <div className="text-slate-500 font-medium">No tables configured yet</div>
+              <div className="text-slate-400 text-sm mt-1">Add sections/tables in Settings, then come back here.</div>
+            </div>
+          ) : sections.length === 0 ? (
+            <div className="py-10 text-center">
+              <div className="text-slate-500 font-medium">No sections found</div>
+              <div className="text-slate-400 text-sm mt-1">Create at least one section in Settings.</div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4">
+                {sections
+                  .slice()
+                  .sort((a, b) => a.display_order - b.display_order)
+                  .map((s) => {
+                    const active = (selectedSectionId ?? sections[0]?.id) === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedSectionId(s.id)}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold border transition whitespace-nowrap ${
+                          active
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-600 border-slate-200/60 hover:bg-slate-50"
+                        }`}
+                      >
+                        {s.name}
+                      </button>
+                    );
+                  })}
+              </div>
+
+              <FloorplanCanvas
+                tables={tables.filter((t) => t.section_id === (selectedSectionId ?? sections[0]?.id))}
+                reservationsByTableId={reservationsByTableId}
+                editable={false}
+                heightPx={460}
+              />
+
+              <div className="mt-3 text-xs text-slate-400">
+                Layout is configured per section in Settings → Floorplan Editor.
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Reservations Timeline */}
         {loading ? (
           <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 p-16 text-center">
@@ -304,18 +416,14 @@ export default function Dashboard() {
           <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 p-16 text-center">
             <div className="text-5xl mb-4">📭</div>
             <p className="text-slate-500 text-lg font-medium">No reservations for {formatDateDisplay(selectedDate)}</p>
-            <p className="text-slate-400 text-sm mt-1">
-              Reservations made via phone will appear here automatically
-            </p>
+            <p className="text-slate-400 text-sm mt-1">Reservations made via phone will appear here automatically</p>
           </div>
         ) : (
           <div className="space-y-6">
             {sortedSlots.map((time) => (
               <div key={time}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-sm font-bold">
-                    {formatTime(time)}
-                  </div>
+                  <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-sm font-bold">{formatTime(time)}</div>
                   <div className="flex-1 h-px bg-slate-100"></div>
                   <span className="text-sm text-slate-400">
                     {timeSlots[time].length} reservation{timeSlots[time].length !== 1 ? "s" : ""}
@@ -330,9 +438,7 @@ export default function Dashboard() {
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h3 className="font-semibold text-slate-900 text-lg">
-                            {reservation.guest_name}
-                          </h3>
+                          <h3 className="font-semibold text-slate-900 text-lg">{reservation.guest_name}</h3>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-sm text-slate-500">
                               👥 {reservation.party_size} guest{reservation.party_size !== 1 ? "s" : ""}
@@ -350,6 +456,9 @@ export default function Dashboard() {
                             📍 {reservation.section_name}
                           </span>
                         )}
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-500">
+                          🪑 {tableNameById[reservation.table_id] || reservation.table_id}
+                        </span>
                         {reservation.special_requests && (
                           <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-600 border border-amber-200">
                             ⚠️ {reservation.special_requests}
