@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Logo from "@/components/Logo";
 
 interface Restaurant {
   id: string;
@@ -102,7 +103,7 @@ export default function OnboardingPage() {
 
         {/* Create new */}
         <div className="bg-white rounded-2xl border border-slate-200/60 p-8 shadow-sm text-center">
-          <div className="text-5xl mb-4">🍽️</div>
+          <div className="flex justify-center mb-4"><Logo size={56} /></div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">
             {existingRestaurants.length > 0 ? "Add another restaurant" : "Set up your restaurant"}
           </h1>

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getRestaurantsByOwner, initDB } from "@/lib/db";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 export default async function Home() {
   const session = await auth();
@@ -22,8 +23,8 @@ export default async function Home() {
       {/* Nav */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🍽️</span>
+          <div className="flex items-center gap-2.5">
+            <Logo size={32} />
             <span className="text-xl font-bold text-slate-900">TableCall</span>
           </div>
           <div className="flex items-center gap-3">
@@ -153,7 +154,7 @@ export default async function Home() {
       <footer className="border-t border-slate-200/60 bg-white">
         <div className="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🍽️</span>
+            <Logo size={24} />
             <span className="font-bold text-slate-900">TableCall</span>
             <span className="text-sm text-slate-400 ml-2">© 2026</span>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Logo from "@/components/Logo";
 
 interface Restaurant {
   id: string;
@@ -35,9 +36,12 @@ export default function RestaurantSwitcher({ currentSlug }: { currentSlug: strin
   if (restaurants.length <= 1) {
     // Just show restaurant name, no switcher needed
     return (
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">🍽️ {current?.name || "TableCall"}</h1>
-        <p className="text-sm text-slate-400">AI-Powered Reservations</p>
+      <div className="flex items-center gap-2.5">
+        <Logo size={30} />
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">{current?.name || "TableCall"}</h1>
+          <p className="text-xs text-slate-400">AI-Powered Reservations</p>
+        </div>
       </div>
     );
   }
@@ -46,11 +50,12 @@ export default function RestaurantSwitcher({ currentSlug }: { currentSlug: strin
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 group"
+        className="flex items-center gap-2.5 group"
       >
+        <Logo size={30} />
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            🍽️ {current?.name || "TableCall"}
+          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            {current?.name || "TableCall"}
             <svg
               className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
               fill="none"

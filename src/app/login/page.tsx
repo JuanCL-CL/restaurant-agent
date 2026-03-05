@@ -1,12 +1,13 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Logo from "@/components/Logo";
 
 export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#eef0f4] flex items-center justify-center">
       <div className="bg-white rounded-2xl border border-slate-200/60 p-10 max-w-md w-full text-center shadow-sm">
-        <div className="text-5xl mb-4">🍽️</div>
+        <div className="flex justify-center mb-4"><Logo size={56} /></div>
         <h1 className="text-3xl font-bold text-slate-900 mb-2">TableCall</h1>
         <p className="text-slate-500 mb-8">AI-Powered Restaurant Reservations</p>
 
