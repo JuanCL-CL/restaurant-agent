@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import FloorplanCanvas from "@/components/FloorplanCanvas";
+import RestaurantSwitcher from "@/components/RestaurantSwitcher";
 
 interface Section {
   id: string;
@@ -183,9 +184,12 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
       {/* Header */}
       <header className="bg-[#ffffff]/90 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">⚙️ Settings</h1>
-            <p className="text-sm text-slate-400">Configure your restaurant</p>
+          <div className="flex items-center gap-4">
+            <RestaurantSwitcher currentSlug={slug} />
+            <span className="text-slate-300">›</span>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">⚙️ Settings</h1>
+            </div>
           </div>
           <Link
             href={`/r/${slug}`}

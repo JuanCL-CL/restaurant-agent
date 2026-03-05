@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import FloorplanCanvas from "@/components/FloorplanCanvas";
+import RestaurantSwitcher from "@/components/RestaurantSwitcher";
 
 interface Reservation {
   id: string;
@@ -120,10 +121,7 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
     <div className="min-h-screen bg-[#eef0f4]">
       <header className="bg-[#ffffff]/90 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">🍽️ TableCall</h1>
-            <p className="text-sm text-slate-400">AI-Powered Reservations</p>
-          </div>
+          <RestaurantSwitcher currentSlug={slug} />
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
