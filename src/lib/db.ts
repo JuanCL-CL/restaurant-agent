@@ -6,8 +6,17 @@ export interface Restaurant {
   id: string;
   slug: string;
   name: string;
+  owner_email?: string;
   vapi_assistant_id?: string;
   twilio_phone?: string;
+  created_at: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  image?: string;
   created_at: string;
 }
 
@@ -65,12 +74,24 @@ let _initialized = false;
 export async function initDB() {
   if (_initialized) return;
 
-  // Restaurants table (new — tenant root)
+  // Users table
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT,
+      image TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  // Restaurants table (tenant root)
   await sql`
     CREATE TABLE IF NOT EXISTS restaurants (
       id TEXT PRIMARY KEY,
       slug TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
+      owner_email TEXT,
       vapi_assistant_id TEXT,
       twilio_phone TEXT,
       created_at TIMESTAMP DEFAULT NOW()
@@ -140,6 +161,7 @@ export async function initDB() {
     } catch { /* column likely already exists */ }
   };
 
+  await safeAddCol("restaurants", "owner_email", "TEXT");
   await safeAddCol("restaurants", "vapi_assistant_id", "TEXT");
   await safeAddCol("restaurants", "twilio_phone", "TEXT");
   await safeAddCol("sections", "restaurant_id", "TEXT");
@@ -261,6 +283,26 @@ function timesOverlap(time1: string, time2: string, durationMins: number): boole
   const mins1 = timeToMinutes(time1);
   const mins2 = timeToMinutes(time2);
   return Math.abs(mins1 - mins2) < durationMins;
+}
+
+// ---- Users ----
+
+export async function upsertUser(email: string, name?: string, image?: string): Promise<User> {
+  await initDB();
+  const id = email; // email as id for simplicity
+  await sql`
+    INSERT INTO users (id, email, name, image)
+    VALUES (${id}, ${email}, ${name || null}, ${image || null})
+    ON CONFLICT (email) DO UPDATE SET name = COALESCE(${name || null}, users.name), image = COALESCE(${image || null}, users.image)
+  `;
+  const { rows } = await sql`SELECT * FROM users WHERE email = ${email}`;
+  return rows[0] as User;
+}
+
+export async function getRestaurantsByOwner(email: string): Promise<Restaurant[]> {
+  await initDB();
+  const { rows } = await sql`SELECT * FROM restaurants WHERE owner_email = ${email} ORDER BY created_at`;
+  return rows as Restaurant[];
 }
 
 // ---- Restaurant ----
