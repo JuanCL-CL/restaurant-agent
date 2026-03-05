@@ -11,8 +11,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async signIn({ user }) {
-      if (user.email) {
-        await upsertUser(user.email, user.name || undefined, user.image || undefined);
+      try {
+        if (user.email) {
+          await upsertUser(user.email, user.name || undefined, user.image || undefined);
+        }
+      } catch (err) {
+        console.error("Failed to upsert user (non-fatal):", err);
+        // Don't block sign-in if DB upsert fails
       }
       return true;
     },
