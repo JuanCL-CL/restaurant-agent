@@ -11,7 +11,7 @@ export default function LoginPage() {
         <p className="text-slate-500 mb-8">AI-Powered Restaurant Reservations</p>
 
         <button
-          onClick={() => signIn("google", { callbackUrl: "/" })}
+          onClick={() => signIn("google", { callbackUrl: "/", redirect: true })}
           className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-slate-200 rounded-xl hover:border-slate-300 hover:bg-slate-50 transition text-slate-700 font-semibold"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">

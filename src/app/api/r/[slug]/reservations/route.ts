@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getReservations, getTables, getSections } from "@/lib/db";
+import { getReservations, getTables, getSections, isRestaurantOwner } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
+import { auth } from "@/lib/auth";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -8,6 +9,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     const restaurant = await resolveTenant(slug);
     if (!restaurant) {
       return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    }
+
+    const session = await auth();
+    if (!session?.user?.email || !(await isRestaurantOwner(restaurant.id, session.user.email))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const date = req.nextUrl.searchParams.get("date") || undefined;

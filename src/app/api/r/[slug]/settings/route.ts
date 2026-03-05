@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSettings, updateSettings, getSections, createSection, updateSection, deleteSection, getTables, createTable, updateTable, deleteTable } from "@/lib/db";
+import { getSettings, updateSettings, getSections, createSection, updateSection, deleteSection, getTables, createTable, updateTable, deleteTable, isRestaurantOwner } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
+import { auth } from "@/lib/auth";
+
+async function checkOwner(restaurantId: string): Promise<NextResponse | null> {
+  const session = await auth();
+  if (!session?.user?.email || !(await isRestaurantOwner(restaurantId, session.user.email))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return null;
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -9,6 +18,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
     if (!restaurant) {
       return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
     }
+
+    const forbidden = await checkOwner(restaurant.id);
+    if (forbidden) return forbidden;
 
     const settings = await getSettings(restaurant.id);
     const sections = await getSections(restaurant.id);
@@ -27,6 +39,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     if (!restaurant) {
       return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
     }
+
+    const forbidden = await checkOwner(restaurant.id);
+    if (forbidden) return forbidden;
 
     const body = await req.json();
     const { action } = body;

@@ -313,19 +313,62 @@ export async function getRestaurantBySlug(slug: string): Promise<Restaurant | nu
   return (rows[0] as Restaurant) ?? null;
 }
 
-export async function createRestaurant(slug: string, name: string): Promise<Restaurant> {
+export async function createRestaurant(slug: string, name: string, ownerEmail?: string): Promise<Restaurant> {
   await initDB();
-  const id = slug; // slug doubles as id for simplicity
-  await sql`INSERT INTO restaurants (id, slug, name) VALUES (${id}, ${slug}, ${name})`;
+  const id = slug;
+  await sql`INSERT INTO restaurants (id, slug, name, owner_email) VALUES (${id}, ${slug}, ${name}, ${ownerEmail || null})`;
 
   // Create default settings
-  await sql`
-    INSERT INTO restaurant_settings (restaurant_id, name)
-    VALUES (${id}, ${name})
-  `;
+  await sql`INSERT INTO restaurant_settings (restaurant_id, name) VALUES (${id}, ${name})`;
+
+  // Seed default sections
+  const defaultSections = [
+    { id: `${id}-indoor`, name: "Indoor", description: "Main dining area", order: 0 },
+    { id: `${id}-outdoor`, name: "Outdoor", description: "Patio seating", order: 1 },
+    { id: `${id}-bar`, name: "Bar", description: "Bar counter seating", order: 2 },
+  ];
+
+  for (const s of defaultSections) {
+    await sql`INSERT INTO sections (id, restaurant_id, name, description, display_order) VALUES (${s.id}, ${id}, ${s.name}, ${s.description}, ${s.order})`;
+  }
+
+  // Seed default tables
+  const defaultTables = [
+    { name: "Table 1", capacity: 2, section: `${id}-indoor` },
+    { name: "Table 2", capacity: 2, section: `${id}-indoor` },
+    { name: "Table 3", capacity: 4, section: `${id}-indoor` },
+    { name: "Table 4", capacity: 4, section: `${id}-indoor` },
+    { name: "Table 5", capacity: 6, section: `${id}-indoor` },
+    { name: "Patio 1", capacity: 4, section: `${id}-outdoor` },
+    { name: "Patio 2", capacity: 4, section: `${id}-outdoor` },
+    { name: "Bar 1", capacity: 2, section: `${id}-bar` },
+    { name: "Bar 2", capacity: 2, section: `${id}-bar` },
+  ];
+
+  const counters: Record<string, number> = {};
+  for (const t of defaultTables) {
+    const idx = counters[t.section] ?? 0;
+    counters[t.section] = idx + 1;
+    const col = idx % 3;
+    const row = Math.floor(idx / 3);
+    const tid = `${id}-t${Date.now()}-${idx}`;
+    await sql`
+      INSERT INTO tables (id, name, capacity, section_id, restaurant_id, x, y, w, h)
+      VALUES (${tid}, ${t.name}, ${t.capacity}, ${t.section}, ${id}, ${6 + col * 30}, ${8 + row * 22}, ${22}, ${18})
+    `;
+  }
 
   const { rows } = await sql`SELECT * FROM restaurants WHERE id = ${id}`;
   return rows[0] as Restaurant;
+}
+
+export async function isRestaurantOwner(restaurantId: string, email: string): Promise<boolean> {
+  await initDB();
+  const { rows } = await sql`SELECT owner_email FROM restaurants WHERE id = ${restaurantId}`;
+  if (rows.length === 0) return false;
+  // If no owner set (e.g., demo), allow anyone who's logged in (for now)
+  if (!rows[0].owner_email) return true;
+  return rows[0].owner_email === email;
 }
 
 // ---- Settings (scoped) ----
