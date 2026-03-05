@@ -98,19 +98,17 @@ export async function initDB() {
     )
   `;
 
-  // Restaurant settings — keyed by restaurant_id now
+  // Restaurant settings — keyed by restaurant_id
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_settings (
-      id SERIAL PRIMARY KEY,
-      restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+      restaurant_id TEXT PRIMARY KEY REFERENCES restaurants(id) ON DELETE CASCADE,
       name TEXT NOT NULL DEFAULT 'My Restaurant',
       phone TEXT,
       address TEXT,
       open_time TEXT DEFAULT '11:00',
       close_time TEXT DEFAULT '22:00',
       last_seating TEXT DEFAULT '21:30',
-      reservation_duration_minutes INTEGER DEFAULT 90,
-      UNIQUE(restaurant_id)
+      reservation_duration_minutes INTEGER DEFAULT 90
     )
   `;
 
@@ -160,6 +158,21 @@ export async function initDB() {
       await sql.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${type}`);
     } catch { /* column likely already exists */ }
   };
+
+  // Fix legacy restaurant_settings: old schema had id INTEGER DEFAULT 1 as PK
+  // which breaks multi-tenant inserts. Switch PK to restaurant_id.
+  try {
+    // Check if the old integer PK constraint exists
+    const { rows: pkCheck } = await sql`
+      SELECT column_name, column_default FROM information_schema.columns
+      WHERE table_name = 'restaurant_settings' AND column_name = 'id' AND data_type = 'integer'
+    `;
+    if (pkCheck.length > 0) {
+      await sql`ALTER TABLE restaurant_settings DROP CONSTRAINT IF EXISTS restaurant_settings_pkey`;
+      await sql`ALTER TABLE restaurant_settings DROP COLUMN IF EXISTS id`;
+      await sql`ALTER TABLE restaurant_settings ADD PRIMARY KEY (restaurant_id)`;
+    }
+  } catch { /* table may not exist yet or already migrated */ }
 
   await safeAddCol("restaurants", "owner_email", "TEXT");
   await safeAddCol("restaurants", "vapi_assistant_id", "TEXT");
