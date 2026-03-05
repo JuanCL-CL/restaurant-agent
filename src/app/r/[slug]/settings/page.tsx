@@ -46,6 +46,9 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
   const [sections, setSections] = useState<Section[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [restaurantInfo, setRestaurantInfo] = useState<{ vapi_assistant_id?: string; twilio_phone?: string } | null>(null);
+  const [phoneNumbers, setPhoneNumbers] = useState<Array<{ sid: string; phoneNumber: string; friendlyName: string; assigned: boolean; assignedToThis: boolean }>>([]);
+  const [loadingPhone, setLoadingPhone] = useState(false);
+  const [assigningPhone, setAssigningPhone] = useState(false);
   const [floorplanSectionId, setFloorplanSectionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -317,7 +320,8 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60">
             <h2 className="text-lg font-semibold text-slate-900">🤖 AI Phone Agent</h2>
           </div>
-          <div className="p-6">
+          <div className="p-6 space-y-5">
+            {/* Agent status */}
             <div className="flex items-start gap-4">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${restaurantInfo?.vapi_assistant_id ? "bg-emerald-50" : "bg-slate-100"}`}>
                 {restaurantInfo?.vapi_assistant_id ? "✅" : "⏳"}
@@ -328,21 +332,93 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
                 </div>
                 <p className="text-sm text-slate-500 mt-1">
                   {restaurantInfo?.vapi_assistant_id
-                    ? "Your AI receptionist is ready to take calls. It will greet callers, check availability, and make reservations automatically."
-                    : "An AI agent will be created when you set up your restaurant. It handles phone calls and takes reservations."}
+                    ? "Your AI receptionist is ready to take calls. It greets callers, checks availability, and makes reservations automatically."
+                    : "An AI agent will be created when you set up your restaurant."}
                 </p>
+              </div>
+            </div>
+
+            {/* Phone number */}
+            <div className="border-t border-slate-200/60 pt-5">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="font-semibold text-slate-900">📞 Phone Number</div>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {restaurantInfo?.twilio_phone
+                      ? "Callers dial this number to reach your AI receptionist."
+                      : "Assign a phone number so customers can call your AI agent."}
+                  </p>
+                </div>
                 {restaurantInfo?.twilio_phone && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-600">📞 Phone:</span>
-                    <span className="text-sm font-mono text-slate-900">{restaurantInfo.twilio_phone}</span>
-                  </div>
-                )}
-                {restaurantInfo?.vapi_assistant_id && !restaurantInfo?.twilio_phone && (
-                  <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
-                    💡 Agent is ready but no phone number assigned yet. Contact us to get a dedicated phone number.
-                  </div>
+                  <span className="text-lg font-mono font-bold text-slate-900">{restaurantInfo.twilio_phone}</span>
                 )}
               </div>
+
+              {!restaurantInfo?.twilio_phone && restaurantInfo?.vapi_assistant_id && (
+                <div>
+                  {phoneNumbers.length === 0 && !loadingPhone ? (
+                    <button
+                      onClick={async () => {
+                        setLoadingPhone(true);
+                        try {
+                          const res = await fetch(`/api/r/${slug}/phone`);
+                          const data = await res.json();
+                          setPhoneNumbers(data.numbers || []);
+                        } catch { showMessage("❌ Failed to load phone numbers"); }
+                        setLoadingPhone(false);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-semibold"
+                    >
+                      {loadingPhone ? "Loading…" : "Assign phone number"}
+                    </button>
+                  ) : loadingPhone ? (
+                    <div className="text-sm text-slate-400">Loading available numbers…</div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-400 mb-2">Available phone numbers:</p>
+                      {phoneNumbers.map((n) => (
+                        <div key={n.sid} className="flex items-center justify-between px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                          <div>
+                            <span className="font-mono text-sm font-semibold text-slate-900">{n.friendlyName}</span>
+                            <span className="text-xs text-slate-400 ml-2">{n.phoneNumber}</span>
+                          </div>
+                          {n.assigned && !n.assignedToThis ? (
+                            <span className="text-xs text-slate-400">In use</span>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                setAssigningPhone(true);
+                                try {
+                                  const res = await fetch(`/api/r/${slug}/phone`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ phoneNumber: n.phoneNumber, phoneNumberSid: n.sid }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    setRestaurantInfo((prev) => prev ? { ...prev, twilio_phone: n.phoneNumber } : prev);
+                                    showMessage("✅ Phone number assigned!");
+                                  } else {
+                                    showMessage(`❌ ${data.error || "Failed"}`);
+                                  }
+                                } catch { showMessage("❌ Failed to assign number"); }
+                                setAssigningPhone(false);
+                              }}
+                              disabled={assigningPhone}
+                              className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-xs font-semibold disabled:opacity-50"
+                            >
+                              {assigningPhone ? "Assigning…" : n.assignedToThis ? "Reassign" : "Use this number"}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {phoneNumbers.length === 0 && (
+                        <div className="text-sm text-slate-400 py-2">No phone numbers found on your Twilio account.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
