@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 
 export type FloorplanTable = {
   id: string;
@@ -8,10 +8,10 @@ export type FloorplanTable = {
   capacity: number;
   section_id: string;
   section_name?: string;
-  x?: number; // 0-100 (percent)
-  y?: number; // 0-100 (percent)
-  w?: number; // 0-100 (percent)
-  h?: number; // 0-100 (percent)
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
 };
 
 export type FloorplanReservation = {
@@ -56,9 +56,45 @@ function withDefaults(t: FloorplanTable): Required<Pick<FloorplanTable, "x" | "y
   return {
     x: typeof t.x === "number" ? t.x : 5,
     y: typeof t.y === "number" ? t.y : 8,
-    w: typeof t.w === "number" ? t.w : 22,
-    h: typeof t.h === "number" ? t.h : 18,
+    w: typeof t.w === "number" ? t.w : 18,
+    h: typeof t.h === "number" ? t.h : 16,
   };
+}
+
+/* Chair dots around a table */
+function ChairDots({ capacity, isOpen }: { capacity: number; isOpen: boolean }) {
+  const count = Math.min(capacity, 10);
+  const dotColor = isOpen ? "bg-emerald-300" : "bg-amber-300";
+  // Distribute dots: top, bottom, left, right
+  const top = Math.ceil(count / 4);
+  const bottom = Math.ceil((count - top) / 3);
+  const left = Math.ceil((count - top - bottom) / 2);
+  const right = count - top - bottom - left;
+
+  const dot = (key: string) => (
+    <div key={key} className={`w-2 h-2 rounded-full ${dotColor} opacity-70`} />
+  );
+
+  return (
+    <>
+      {/* Top chairs */}
+      <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex gap-1.5">
+        {Array.from({ length: top }, (_, i) => dot(`t${i}`))}
+      </div>
+      {/* Bottom chairs */}
+      <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1.5">
+        {Array.from({ length: bottom }, (_, i) => dot(`b${i}`))}
+      </div>
+      {/* Left chairs */}
+      <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 flex flex-col gap-1.5">
+        {Array.from({ length: left }, (_, i) => dot(`l${i}`))}
+      </div>
+      {/* Right chairs */}
+      <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 flex flex-col gap-1.5">
+        {Array.from({ length: right }, (_, i) => dot(`r${i}`))}
+      </div>
+    </>
+  );
 }
 
 export default function FloorplanCanvas({
@@ -70,21 +106,23 @@ export default function FloorplanCanvas({
 }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [drag, setDrag] = useState<DragState>(null);
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [openTableId, setOpenTableId] = useState<string | null>(null);
 
   const tablesWithDefaults = useMemo(() => {
     return tables.map((t) => ({ ...t, ...withDefaults(t) }));
   }, [tables]);
 
-  function updateTable(id: string, patch: Partial<FloorplanTable>) {
-    const next = tables.map((t) => (t.id === id ? { ...t, ...patch } : t));
-    onChange?.(next);
-  }
+  const updateTable = useCallback(
+    (id: string, patch: Partial<FloorplanTable>) => {
+      const next = tables.map((t) => (t.id === id ? { ...t, ...patch } : t));
+      onChange?.(next);
+    },
+    [tables, onChange]
+  );
 
   function getRect() {
-    const el = ref.current;
-    if (!el) return null;
-    return el.getBoundingClientRect();
+    return ref.current?.getBoundingClientRect() ?? null;
   }
 
   function onPointerMove(e: React.PointerEvent) {
@@ -98,22 +136,19 @@ export default function FloorplanCanvas({
     if (drag.kind === "drag") {
       const t = tablesWithDefaults.find((x) => x.id === drag.id);
       if (!t) return;
-      const nextX = clamp(drag.startX + dxPct, 0, 100 - t.w!);
-      const nextY = clamp(drag.startY + dyPct, 0, 100 - t.h!);
-      updateTable(drag.id, { x: nextX, y: nextY });
+      updateTable(drag.id, {
+        x: clamp(drag.startX + dxPct, 0, 100 - t.w!),
+        y: clamp(drag.startY + dyPct, 0, 100 - t.h!),
+      });
     }
 
     if (drag.kind === "resize") {
       const t = tablesWithDefaults.find((x) => x.id === drag.id);
       if (!t) return;
-      const minW = 10;
-      const minH = 10;
-      const maxW = 100 - t.x!;
-      const maxH = 100 - t.y!;
-
-      const nextW = clamp(drag.startW + dxPct, minW, maxW);
-      const nextH = clamp(drag.startH + dyPct, minH, maxH);
-      updateTable(drag.id, { w: nextW, h: nextH });
+      updateTable(drag.id, {
+        w: clamp(drag.startW + dxPct, 8, 100 - t.x!),
+        h: clamp(drag.startH + dyPct, 8, 100 - t.y!),
+      });
     }
   }
 
@@ -121,53 +156,80 @@ export default function FloorplanCanvas({
     setDrag(null);
   }
 
+  const isDragging = drag !== null;
+
   return (
     <div
       ref={ref}
-      className="relative w-full rounded-2xl border border-slate-200/60 bg-slate-50 overflow-hidden"
-      style={{ height: `${heightPx}px` }}
+      className="relative w-full rounded-2xl border border-slate-200/60 overflow-hidden"
+      style={{
+        height: `${heightPx}px`,
+        background: editable
+          ? "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)"
+          : "linear-gradient(135deg, #fafbfc 0%, #f3f5f8 100%)",
+      }}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
-      onPointerLeave={() => {
-        // Avoid sticky drag if pointer leaves the canvas.
-        if (drag) endDrag();
+      onPointerLeave={() => { if (drag) endDrag(); }}
+      onClick={() => {
+        // Click on empty canvas area — deselect
+        if (!editable) setOpenTableId(null);
+        setSelectedTableId(null);
       }}
     >
-      {/* light grid */}
+      {/* Subtle dot grid */}
       <div
-        className="absolute inset-0 opacity-[0.22]"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage:
-            "linear-gradient(to right, rgba(148,163,184,0.5) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.5) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
+          backgroundImage: "radial-gradient(circle, rgba(148,163,184,0.25) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
         }}
       />
 
+      {/* Section label watermark */}
+      {tablesWithDefaults.length > 0 && (
+        <div className="absolute top-3 left-4 text-[11px] font-semibold text-slate-300 uppercase tracking-widest pointer-events-none select-none">
+          {tablesWithDefaults[0].section_name || ""}
+        </div>
+      )}
+
+      {/* Tables */}
       {tablesWithDefaults.map((t) => {
         const booked = (reservationsByTableId?.[t.id]?.length || 0) > 0;
         const tableReservations = (reservationsByTableId?.[t.id] || []).slice().sort((a, b) => a.time.localeCompare(b.time));
-
         const isOpen = !booked;
-        const color = isOpen
-          ? "border-emerald-200 bg-emerald-50/70"
-          : "border-amber-200 bg-amber-50/80";
+        const isSelected = selectedTableId === t.id;
+        const isBeingDragged = drag?.id === t.id;
+
+        const borderColor = isSelected
+          ? "border-blue-400 ring-2 ring-blue-200/60"
+          : isOpen
+          ? "border-emerald-200/80"
+          : "border-amber-200/80";
+
+        const bgColor = isOpen
+          ? "bg-gradient-to-br from-emerald-50 to-emerald-100/60"
+          : "bg-gradient-to-br from-amber-50 to-amber-100/60";
 
         return (
           <div
             key={t.id}
-            className={`absolute rounded-xl border shadow-sm select-none ${color} ${editable ? "cursor-move" : "cursor-pointer"}`}
+            className={`absolute rounded-xl border-2 select-none transition-shadow ${borderColor} ${bgColor} ${
+              isBeingDragged ? "shadow-lg z-20" : "shadow-sm z-10"
+            } ${editable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer hover:shadow-md"}`}
             style={{
               left: `${t.x}%`,
               top: `${t.y}%`,
               width: `${t.w}%`,
               height: `${t.h}%`,
+              transition: isDragging ? "none" : "box-shadow 0.15s ease, border-color 0.15s ease",
             }}
             onPointerDown={(e) => {
               if (!editable) return;
-              // ignore right-click / non-primary
               if (e.button !== 0) return;
               (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+              setSelectedTableId(t.id);
               setDrag({
                 kind: "drag",
                 id: t.id,
@@ -177,87 +239,112 @@ export default function FloorplanCanvas({
                 startY: t.y!,
               });
             }}
-            onClick={() => {
-              if (editable) return;
-              setOpenTableId((prev) => (prev === t.id ? null : t.id));
+            onClick={(e) => {
+              e.stopPropagation();
+              if (editable) {
+                setSelectedTableId(t.id);
+              } else {
+                setOpenTableId((prev) => (prev === t.id ? null : t.id));
+              }
             }}
           >
-            <div className="p-2.5 h-full flex flex-col">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 truncate">{t.name}</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">{t.capacity} seats</div>
-                </div>
-                <span
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border whitespace-nowrap ${
-                    isOpen
-                      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                      : "bg-amber-100 text-amber-700 border-amber-200"
-                  }`}
-                >
-                  {isOpen ? "Open" : `${tableReservations.length} booked`}
+            {/* Chair dots (edit mode only for visual reference) */}
+            {editable && <ChairDots capacity={t.capacity} isOpen={isOpen} />}
+
+            <div className="p-2 h-full flex flex-col justify-center items-center text-center relative">
+              <div className="text-sm font-bold text-slate-800 truncate max-w-full leading-tight">{t.name}</div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-[11px] text-slate-500">
+                  {t.capacity} {t.capacity === 1 ? "seat" : "seats"}
                 </span>
               </div>
 
-              {/* compact reservation preview (view mode) */}
+              {/* Reservation count badge (view mode) */}
               {!editable && booked && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {tableReservations.slice(0, 2).map((r) => (
-                    <span key={r.id} className="px-2 py-0.5 rounded-md bg-white/80 border border-slate-200/60 text-[10px] text-slate-600">
-                      {r.time}
-                    </span>
-                  ))}
-                  {tableReservations.length > 2 && (
-                    <span className="px-2 py-0.5 rounded-md bg-white/80 border border-slate-200/60 text-[10px] text-slate-500">
-                      +{tableReservations.length - 2}
-                    </span>
-                  )}
+                <div className="mt-1.5">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-200/70 text-amber-800">
+                    {tableReservations.length} booked
+                  </span>
                 </div>
               )}
 
-              {/* resize handle */}
-              {editable && (
-                <div
-                  className="absolute right-1 bottom-1 w-3.5 h-3.5 rounded bg-slate-900/70 cursor-nwse-resize"
-                  onPointerDown={(e) => {
-                    // prevent starting a drag
-                    e.stopPropagation();
-                    if (e.button !== 0) return;
-                    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-                    setDrag({
-                      kind: "resize",
-                      id: t.id,
-                      startClientX: e.clientX,
-                      startClientY: e.clientY,
-                      startW: t.w!,
-                      startH: t.h!,
-                    });
-                  }}
-                />
+              {/* Open badge (view mode) */}
+              {!editable && isOpen && (
+                <div className="mt-1.5">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-200/70 text-emerald-800">
+                    ✓ Open
+                  </span>
+                </div>
               )}
             </div>
 
-            {/* popover (view mode) */}
+            {/* Resize handle (edit mode) */}
+            {editable && (
+              <div
+                className="absolute right-0.5 bottom-0.5 w-4 h-4 cursor-nwse-resize group"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  if (e.button !== 0) return;
+                  (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+                  setDrag({
+                    kind: "resize",
+                    id: t.id,
+                    startClientX: e.clientX,
+                    startClientY: e.clientY,
+                    startW: t.w!,
+                    startH: t.h!,
+                  });
+                }}
+              >
+                {/* Three diagonal lines — classic resize icon */}
+                <svg viewBox="0 0 16 16" className="w-full h-full text-slate-400 group-hover:text-slate-600 transition-colors">
+                  <line x1="14" y1="4" x2="4" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="14" y1="8" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="14" y1="12" x2="12" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+            )}
+
+            {/* Popover (view mode) */}
             {!editable && openTableId === t.id && (
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 z-20">
-                <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-3">
-                  <div className="text-sm font-semibold text-slate-900">{t.name}</div>
-                  <div className="text-xs text-slate-400 mb-2">{t.capacity} seats</div>
-                  {tableReservations.length === 0 ? (
-                    <div className="text-sm text-slate-500">No reservations</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {tableReservations.slice(0, 6).map((r) => (
-                        <div key={r.id} className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-slate-700">{r.time}</span>
-                          <span className="text-xs text-slate-600 truncate">{r.guest_name} ({r.party_size})</span>
-                        </div>
-                      ))}
-                      {tableReservations.length > 6 && (
-                        <div className="text-xs text-slate-400">+{tableReservations.length - 6} more</div>
-                      )}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-64 z-30"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="bg-white rounded-xl border border-slate-200 shadow-xl p-4 relative">
+                  {/* Arrow */}
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-bold text-slate-900">{t.name}</div>
+                      <div className="text-xs text-slate-400">{t.capacity} seats</div>
                     </div>
-                  )}
+                    {tableReservations.length === 0 ? (
+                      <div className="text-sm text-slate-400 italic py-2">No reservations today</div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {tableReservations.slice(0, 6).map((r) => {
+                          const [h, m] = r.time.split(":");
+                          const hour = parseInt(h);
+                          const ampm = hour >= 12 ? "PM" : "AM";
+                          const h12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+                          const timeStr = `${h12}:${m} ${ampm}`;
+                          return (
+                            <div key={r.id} className="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-slate-50">
+                              <span className="text-xs font-semibold text-slate-700">{timeStr}</span>
+                              <span className="text-xs text-slate-600 truncate">
+                                {r.guest_name}
+                                <span className="text-slate-400 ml-1">({r.party_size})</span>
+                              </span>
+                            </div>
+                          );
+                        })}
+                        {tableReservations.length > 6 && (
+                          <div className="text-xs text-slate-400 text-center pt-1">+{tableReservations.length - 6} more</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -265,9 +352,32 @@ export default function FloorplanCanvas({
         );
       })}
 
-      {editable && (
-        <div className="absolute right-4 bottom-3 text-[11px] text-slate-400 bg-white/80 border border-slate-200/60 rounded-full px-3 py-1">
-          Drag tables to move · Drag the corner to resize
+      {/* Empty state */}
+      {tablesWithDefaults.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+          <div className="text-4xl mb-2">🪑</div>
+          <div className="text-sm font-medium">No tables in this section</div>
+          <div className="text-xs mt-1">Add tables in the list below, then arrange them here</div>
+        </div>
+      )}
+
+      {/* Help bar (edit mode) */}
+      {editable && tablesWithDefaults.length > 0 && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-3 flex items-center gap-4 text-[11px] text-slate-400 bg-white/90 backdrop-blur-sm border border-slate-200/60 rounded-full px-4 py-1.5 shadow-sm">
+          <span className="flex items-center gap-1">
+            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[10px] font-mono">drag</kbd> move
+          </span>
+          <span className="text-slate-200">|</span>
+          <span className="flex items-center gap-1">
+            <svg viewBox="0 0 16 16" className="w-3 h-3 text-slate-400 inline-block">
+              <line x1="14" y1="4" x2="4" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="14" y1="8" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="14" y1="12" x2="12" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            resize
+          </span>
+          <span className="text-slate-200">|</span>
+          <span>Don&apos;t forget to <strong className="text-slate-600">Save Layout</strong></span>
         </div>
       )}
     </div>
