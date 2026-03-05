@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRestaurant, getRestaurantsByOwner, getRestaurantBySlug, initDB } from "@/lib/db";
+import { createRestaurant, getRestaurantsByOwner, getRestaurantBySlug, setRestaurantVapiAssistant, initDB } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { createVapiAssistant } from "@/lib/vapi";
 
 export async function GET() {
   try {
@@ -43,6 +44,17 @@ export async function POST(req: NextRequest) {
     }
 
     const restaurant = await createRestaurant(slug, name.trim(), session.user.email);
+
+    // Create a Vapi AI assistant for this restaurant
+    try {
+      const baseUrl = process.env.AUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://restaurant-agent-red.vercel.app";
+      const assistant = await createVapiAssistant(name.trim(), slug, baseUrl);
+      await setRestaurantVapiAssistant(restaurant.id, assistant.id);
+    } catch (err) {
+      console.error("Failed to create Vapi assistant (restaurant still created):", err);
+      // Non-fatal — restaurant is usable without AI agent, can retry later
+    }
+
     return NextResponse.json({ restaurant, redirect: `/r/${restaurant.slug}` });
   } catch (error) {
     console.error("Onboarding POST error:", error);

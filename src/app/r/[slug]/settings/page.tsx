@@ -45,6 +45,7 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
   });
   const [sections, setSections] = useState<Section[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
+  const [restaurantInfo, setRestaurantInfo] = useState<{ vapi_assistant_id?: string; twilio_phone?: string } | null>(null);
   const [floorplanSectionId, setFloorplanSectionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,6 +68,7 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
         setFloorplanSectionId((prev) => prev ?? (data.sections?.[0]?.id ?? null));
       }
       if (data.tables) setTables(data.tables);
+      if (data.restaurant) setRestaurantInfo(data.restaurant);
     } catch {
       console.error("Failed to load settings");
     }
@@ -306,6 +308,41 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Agent */}
+        <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60">
+            <h2 className="text-lg font-semibold text-slate-900">🤖 AI Phone Agent</h2>
+          </div>
+          <div className="p-6">
+            <div className="flex items-start gap-4">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${restaurantInfo?.vapi_assistant_id ? "bg-emerald-50" : "bg-slate-100"}`}>
+                {restaurantInfo?.vapi_assistant_id ? "✅" : "⏳"}
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-slate-900">
+                  {restaurantInfo?.vapi_assistant_id ? "Agent active" : "No agent configured"}
+                </div>
+                <p className="text-sm text-slate-500 mt-1">
+                  {restaurantInfo?.vapi_assistant_id
+                    ? "Your AI receptionist is ready to take calls. It will greet callers, check availability, and make reservations automatically."
+                    : "An AI agent will be created when you set up your restaurant. It handles phone calls and takes reservations."}
+                </p>
+                {restaurantInfo?.twilio_phone && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-600">📞 Phone:</span>
+                    <span className="text-sm font-mono text-slate-900">{restaurantInfo.twilio_phone}</span>
+                  </div>
+                )}
+                {restaurantInfo?.vapi_assistant_id && !restaurantInfo?.twilio_phone && (
+                  <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                    💡 Agent is ready but no phone number assigned yet. Contact us to get a dedicated phone number.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

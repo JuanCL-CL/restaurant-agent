@@ -25,7 +25,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
     const settings = await getSettings(restaurant.id);
     const sections = await getSections(restaurant.id);
     const tables = await getTables(restaurant.id);
-    return NextResponse.json({ settings, sections, tables });
+    return NextResponse.json({
+      settings,
+      sections,
+      tables,
+      restaurant: {
+        slug: restaurant.slug,
+        name: restaurant.name,
+        vapi_assistant_id: restaurant.vapi_assistant_id || null,
+        twilio_phone: restaurant.twilio_phone || null,
+      },
+    });
   } catch (error) {
     console.error("Settings GET error:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

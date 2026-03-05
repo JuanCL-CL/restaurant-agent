@@ -326,6 +326,11 @@ export async function getRestaurantBySlug(slug: string): Promise<Restaurant | nu
   return (rows[0] as Restaurant) ?? null;
 }
 
+export async function setRestaurantVapiAssistant(id: string, assistantId: string): Promise<void> {
+  await initDB();
+  await sql`UPDATE restaurants SET vapi_assistant_id = ${assistantId} WHERE id = ${id}`;
+}
+
 export async function createRestaurant(slug: string, name: string, ownerEmail?: string): Promise<Restaurant> {
   await initDB();
   const id = slug;
