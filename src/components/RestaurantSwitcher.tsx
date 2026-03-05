@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 
@@ -183,44 +184,48 @@ export default function RestaurantSwitcher({ currentSlug }: { currentSlug: strin
         )}
       </div>
 
-      {/* Delete confirmation modal */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 max-w-md w-full mx-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-xl">🗑️</div>
-              <div>
-                <h3 className="font-bold text-slate-900">Delete {deleteTarget.name}?</h3>
-                <p className="text-sm text-slate-500">This cannot be undone.</p>
+      {/* Delete confirmation modal — portaled to body to escape header stacking context */}
+      {deleteTarget && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-xl">🗑️</div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-lg">Delete {deleteTarget.name}?</h3>
+                  <p className="text-sm text-slate-500">This cannot be undone.</p>
+                </div>
               </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5 text-sm text-red-700">
+                <p className="font-semibold mb-2">This will permanently delete:</p>
+                <ul className="space-y-1 ml-5 list-disc">
+                  <li>All reservations</li>
+                  <li>All tables and floor plan</li>
+                  <li>All sections and settings</li>
+                  <li>The AI phone agent</li>
+                </ul>
+              </div>
+
+              <label className="block text-sm font-medium text-slate-600 mb-2">
+                Type <span className="font-bold text-slate-900">{deleteTarget.name}</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmName}
+                onChange={(e) => { setDeleteConfirmName(e.target.value); setDeleteError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleDelete()}
+                placeholder={deleteTarget.name}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder-slate-300 focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                autoFocus
+              />
+              {deleteError && <p className="text-sm text-red-500 mt-2">{deleteError}</p>}
             </div>
 
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5 text-sm text-red-700">
-              <p className="font-semibold mb-2">This will permanently delete:</p>
-              <ul className="space-y-1 ml-4 list-disc">
-                <li>All reservations</li>
-                <li>All tables and floor plan</li>
-                <li>All sections</li>
-                <li>Restaurant settings</li>
-                <li>The AI phone agent</li>
-              </ul>
-            </div>
-
-            <label className="block text-sm font-medium text-slate-600 mb-2">
-              Type <span className="font-bold text-slate-900">{deleteTarget.name}</span> to confirm
-            </label>
-            <input
-              type="text"
-              value={deleteConfirmName}
-              onChange={(e) => { setDeleteConfirmName(e.target.value); setDeleteError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && handleDelete()}
-              placeholder={deleteTarget.name}
-              className="w-full bg-[#eef0f4] border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder-slate-300 focus:ring-2 focus:ring-red-500 focus:border-transparent transition mb-2"
-              autoFocus
-            />
-            {deleteError && <p className="text-sm text-red-500 mb-2">{deleteError}</p>}
-
-            <div className="flex gap-3 mt-4">
+            <div className="flex gap-3 p-6 pt-0">
               <button
                 onClick={() => { setDeleteTarget(null); setDeleteConfirmName(""); setDeleteError(""); }}
                 className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition font-medium text-sm"
@@ -236,7 +241,8 @@ export default function RestaurantSwitcher({ currentSlug }: { currentSlug: strin
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
