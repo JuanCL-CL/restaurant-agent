@@ -9,7 +9,9 @@ export default auth((req) => {
     pathname === "/" ||
     pathname === "/login" ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/vapi") || // Vapi webhooks must be unauthenticated
+    pathname.startsWith("/api/vapi") ||       // Vapi webhooks must be unauthenticated
+    pathname === "/api/reservations" ||        // Legacy API (used by Vapi)
+    pathname === "/api/settings" ||            // Legacy API
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon");
 
