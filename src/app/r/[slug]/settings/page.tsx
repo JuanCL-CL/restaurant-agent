@@ -423,6 +423,123 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
           </div>
         </div>
 
+        {/* Call Forwarding Setup Guide */}
+        {restaurantInfo?.twilio_phone && (
+          <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60">
+              <h2 className="text-lg font-semibold text-slate-900">📲 Connect Your Restaurant Phone</h2>
+              <p className="text-sm text-slate-400 mt-0.5">Set up call forwarding so your AI agent catches missed calls</p>
+            </div>
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                <div className="text-sm font-semibold text-blue-900 mb-1">How it works</div>
+                <p className="text-sm text-blue-700">
+                  When a customer calls your restaurant and nobody picks up, the call automatically forwards to your AI agent at{" "}
+                  <span className="font-mono font-bold">{restaurantInfo.twilio_phone}</span>. The AI greets them, takes reservations, and handles questions — just like a real receptionist.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Setup by carrier</h3>
+
+                {/* AT&T */}
+                <div className="rounded-xl border border-slate-200/60 overflow-hidden">
+                  <details className="group">
+                    <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
+                      <span className="font-semibold text-slate-900">AT&T</span>
+                      <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
+                      <p><strong>Forward when busy or unanswered:</strong></p>
+                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
+                        *61*{restaurantInfo.twilio_phone?.replace("+1", "")}#
+                      </div>
+                      <p className="text-xs text-slate-400">Dial this from your restaurant phone. To disable: ##61#</p>
+                    </div>
+                  </details>
+                </div>
+
+                {/* Verizon */}
+                <div className="rounded-xl border border-slate-200/60 overflow-hidden">
+                  <details className="group">
+                    <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
+                      <span className="font-semibold text-slate-900">Verizon</span>
+                      <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
+                      <p><strong>Forward when no answer:</strong></p>
+                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
+                        *71{restaurantInfo.twilio_phone?.replace("+1", "")}
+                      </div>
+                      <p className="text-xs text-slate-400">Dial from your restaurant phone. To disable: *73</p>
+                    </div>
+                  </details>
+                </div>
+
+                {/* T-Mobile */}
+                <div className="rounded-xl border border-slate-200/60 overflow-hidden">
+                  <details className="group">
+                    <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
+                      <span className="font-semibold text-slate-900">T-Mobile</span>
+                      <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
+                      <p><strong>Forward when busy or unanswered:</strong></p>
+                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
+                        **61*+1{restaurantInfo.twilio_phone?.replace("+1", "")}#
+                      </div>
+                      <p className="text-xs text-slate-400">Dial from your restaurant phone. To disable: ##61#</p>
+                    </div>
+                  </details>
+                </div>
+
+                {/* VoIP / Landline */}
+                <div className="rounded-xl border border-slate-200/60 overflow-hidden">
+                  <details className="group">
+                    <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
+                      <span className="font-semibold text-slate-900">VoIP / Business landline</span>
+                      <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
+                      <p>Most business phone systems (RingCentral, Vonage, Google Voice, etc.) have call forwarding in their admin panel:</p>
+                      <ol className="list-decimal ml-5 space-y-1">
+                        <li>Go to your phone system&apos;s settings</li>
+                        <li>Find &quot;Call forwarding&quot; or &quot;Unanswered calls&quot;</li>
+                        <li>Set forward-to number:</li>
+                      </ol>
+                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
+                        {restaurantInfo.twilio_phone}
+                      </div>
+                      <p>Set the ring timeout to 15–20 seconds (3–4 rings).</p>
+                    </div>
+                  </details>
+                </div>
+
+                {/* Generic */}
+                <div className="rounded-xl border border-slate-200/60 overflow-hidden">
+                  <details className="group">
+                    <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
+                      <span className="font-semibold text-slate-900">Other carrier / not sure</span>
+                      <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
+                      <p>Call your phone provider and ask them to set up <strong>conditional call forwarding</strong> (forward on no answer / busy) to:</p>
+                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
+                        {restaurantInfo.twilio_phone}
+                      </div>
+                      <p>This is a standard feature — every carrier supports it. There&apos;s usually no extra charge.</p>
+                    </div>
+                  </details>
+                </div>
+              </div>
+
+              <div className="mt-5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
+                <strong>💡 Tip:</strong> Test it by calling your restaurant number, letting it ring without answering, and seeing if the AI picks up.
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Floorplan Editor */}
         <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between">
