@@ -8,6 +8,9 @@ import {
   initDB,
 } from "@/lib/db";
 
+// Legacy route — serves "demo" restaurant for backward compat
+const RID = "demo";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseArgs(args: any): Record<string, any> {
   if (typeof args === "string") {
@@ -141,7 +144,7 @@ export async function POST(req: NextRequest) {
 
           case "check_availability": {
             const { date, time, party_size, section } = args;
-            const availability = await checkAvailability(date, time, party_size, section);
+            const availability = await checkAvailability(RID, date, time, party_size, section);
 
             if (availability.available) {
               const sections = [...new Set(availability.tables.map((t) => t.section_name || t.section_id))];
@@ -167,6 +170,7 @@ export async function POST(req: NextRequest) {
           case "make_reservation": {
             const { guest_name, party_size, date, time, special_requests, phone, section } = args;
             const reservation = await createReservation(
+              RID,
               guest_name,
               party_size,
               date,
@@ -207,7 +211,7 @@ export async function POST(req: NextRequest) {
 
           case "find_reservation": {
             const { guest_name, date } = args;
-            const reservations = await findReservation(guest_name, date);
+            const reservations = await findReservation(RID, guest_name, date);
 
             if (reservations.length > 0) {
               result = {

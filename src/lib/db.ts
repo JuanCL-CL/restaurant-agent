@@ -1,7 +1,19 @@
 import { sql } from "@vercel/postgres";
 
+// ---- Types ----
+
+export interface Restaurant {
+  id: string;
+  slug: string;
+  name: string;
+  vapi_assistant_id?: string;
+  twilio_phone?: string;
+  created_at: string;
+}
+
 export interface Section {
   id: string;
+  restaurant_id: string;
   name: string;
   description?: string;
   display_order: number;
@@ -12,8 +24,8 @@ export interface Table {
   name: string;
   capacity: number;
   section_id: string;
+  restaurant_id: string;
   section_name?: string;
-  // Floorplan geometry (percent of canvas: 0-100)
   x?: number;
   y?: number;
   w?: number;
@@ -22,6 +34,7 @@ export interface Table {
 
 export interface Reservation {
   id: string;
+  restaurant_id: string;
   guest_name: string;
   party_size: number;
   date: string;
@@ -35,6 +48,7 @@ export interface Reservation {
 }
 
 export interface RestaurantSettings {
+  restaurant_id: string;
   name: string;
   phone?: string;
   address?: string;
@@ -44,24 +58,45 @@ export interface RestaurantSettings {
   reservation_duration_minutes: number;
 }
 
-// Initialize database tables
+// ---- Schema ----
+
+let _initialized = false;
+
 export async function initDB() {
+  if (_initialized) return;
+
+  // Restaurants table (new — tenant root)
+  await sql`
+    CREATE TABLE IF NOT EXISTS restaurants (
+      id TEXT PRIMARY KEY,
+      slug TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      vapi_assistant_id TEXT,
+      twilio_phone TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  // Restaurant settings — keyed by restaurant_id now
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_settings (
-      id INTEGER PRIMARY KEY DEFAULT 1,
+      id SERIAL PRIMARY KEY,
+      restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
       name TEXT NOT NULL DEFAULT 'My Restaurant',
       phone TEXT,
       address TEXT,
       open_time TEXT DEFAULT '11:00',
       close_time TEXT DEFAULT '22:00',
       last_seating TEXT DEFAULT '21:30',
-      reservation_duration_minutes INTEGER DEFAULT 90
+      reservation_duration_minutes INTEGER DEFAULT 90,
+      UNIQUE(restaurant_id)
     )
   `;
 
   await sql`
     CREATE TABLE IF NOT EXISTS sections (
       id TEXT PRIMARY KEY,
+      restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       description TEXT,
       display_order INTEGER DEFAULT 0
@@ -73,19 +108,19 @@ export async function initDB() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       capacity INTEGER NOT NULL,
-      section_id TEXT NOT NULL REFERENCES sections(id) ON DELETE CASCADE
+      section_id TEXT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+      restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+      x DOUBLE PRECISION,
+      y DOUBLE PRECISION,
+      w DOUBLE PRECISION,
+      h DOUBLE PRECISION
     )
   `;
-
-  // Floorplan columns (added later; keep idempotent for existing DBs)
-  await sql`ALTER TABLE tables ADD COLUMN IF NOT EXISTS x DOUBLE PRECISION`;
-  await sql`ALTER TABLE tables ADD COLUMN IF NOT EXISTS y DOUBLE PRECISION`;
-  await sql`ALTER TABLE tables ADD COLUMN IF NOT EXISTS w DOUBLE PRECISION`;
-  await sql`ALTER TABLE tables ADD COLUMN IF NOT EXISTS h DOUBLE PRECISION`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS reservations (
       id TEXT PRIMARY KEY,
+      restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
       guest_name TEXT NOT NULL,
       party_size INTEGER NOT NULL,
       date TEXT NOT NULL,
@@ -98,86 +133,128 @@ export async function initDB() {
     )
   `;
 
-  // Seed defaults if empty
-  const { rows: settingsRows } = await sql`SELECT COUNT(*) as count FROM restaurant_settings`;
-  if (parseInt(settingsRows[0].count) === 0) {
-    await sql`INSERT INTO restaurant_settings (id, name) VALUES (1, 'My Restaurant')`;
+  // Add columns that might be missing on older DBs (idempotent)
+  const safeAddCol = async (table: string, col: string, type: string) => {
+    try {
+      await sql.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${type}`);
+    } catch { /* column likely already exists */ }
+  };
+
+  await safeAddCol("restaurants", "vapi_assistant_id", "TEXT");
+  await safeAddCol("restaurants", "twilio_phone", "TEXT");
+  await safeAddCol("sections", "restaurant_id", "TEXT");
+  await safeAddCol("tables", "restaurant_id", "TEXT");
+  await safeAddCol("tables", "x", "DOUBLE PRECISION");
+  await safeAddCol("tables", "y", "DOUBLE PRECISION");
+  await safeAddCol("tables", "w", "DOUBLE PRECISION");
+  await safeAddCol("tables", "h", "DOUBLE PRECISION");
+  await safeAddCol("reservations", "restaurant_id", "TEXT");
+  await safeAddCol("restaurant_settings", "restaurant_id", "TEXT");
+
+  // ---- Migrate legacy data to "demo" restaurant ----
+  const { rows: demoCheck } = await sql`SELECT id FROM restaurants WHERE slug = 'demo' LIMIT 1`;
+  if (demoCheck.length === 0) {
+    // Check if there's legacy data (sections without restaurant_id)
+    let hasLegacyData = false;
+    try {
+      const { rows } = await sql`SELECT COUNT(*) as cnt FROM sections WHERE restaurant_id IS NULL OR restaurant_id = ''`;
+      hasLegacyData = parseInt(rows[0]?.cnt || "0") > 0;
+    } catch { /* table might not exist yet */ }
+
+    // Create demo restaurant
+    await sql`
+      INSERT INTO restaurants (id, slug, name)
+      VALUES ('demo', 'demo', 'Demo Restaurant')
+      ON CONFLICT (id) DO NOTHING
+    `;
+
+    if (hasLegacyData) {
+      // Migrate orphaned records
+      await sql`UPDATE sections SET restaurant_id = 'demo' WHERE restaurant_id IS NULL OR restaurant_id = ''`;
+      await sql`UPDATE tables SET restaurant_id = 'demo' WHERE restaurant_id IS NULL OR restaurant_id = ''`;
+      await sql`UPDATE reservations SET restaurant_id = 'demo' WHERE restaurant_id IS NULL OR restaurant_id = ''`;
+
+      // Migrate settings: read old row, insert into new schema
+      try {
+        const { rows: oldSettings } = await sql`SELECT * FROM restaurant_settings WHERE id = 1 LIMIT 1`;
+        if (oldSettings.length > 0) {
+          const s = oldSettings[0];
+          await sql`
+            INSERT INTO restaurant_settings (restaurant_id, name, phone, address, open_time, close_time, last_seating, reservation_duration_minutes)
+            VALUES ('demo', ${s.name || 'My Restaurant'}, ${s.phone || null}, ${s.address || null}, ${s.open_time || '11:00'}, ${s.close_time || '22:00'}, ${s.last_seating || '21:30'}, ${s.reservation_duration_minutes || 90})
+            ON CONFLICT (restaurant_id) DO NOTHING
+          `;
+        }
+      } catch { /* settings may already be migrated */ }
+    }
+
+    // Ensure demo has settings
+    await sql`
+      INSERT INTO restaurant_settings (restaurant_id, name)
+      VALUES ('demo', 'Demo Restaurant')
+      ON CONFLICT (restaurant_id) DO NOTHING
+    `;
   }
 
-  const { rows: sectionRows } = await sql`SELECT COUNT(*) as count FROM sections`;
-  if (parseInt(sectionRows[0].count) === 0) {
-    await sql`INSERT INTO sections (id, name, description, display_order) VALUES ('indoor', 'Indoor', 'Main dining area', 0)`;
-    await sql`INSERT INTO sections (id, name, description, display_order) VALUES ('outdoor', 'Outdoor', 'Patio seating', 1)`;
-    await sql`INSERT INTO sections (id, name, description, display_order) VALUES ('bar', 'Bar', 'Bar counter seating', 2)`;
-    await sql`INSERT INTO sections (id, name, description, display_order) VALUES ('private', 'Private', 'Private dining room', 3)`;
+  // Seed demo restaurant with defaults if it has no sections
+  const { rows: sectionCount } = await sql`SELECT COUNT(*) as cnt FROM sections WHERE restaurant_id = 'demo'`;
+  if (parseInt(sectionCount[0].cnt) === 0) {
+    await sql`INSERT INTO sections (id, restaurant_id, name, description, display_order) VALUES ('demo-indoor', 'demo', 'Indoor', 'Main dining area', 0)`;
+    await sql`INSERT INTO sections (id, restaurant_id, name, description, display_order) VALUES ('demo-outdoor', 'demo', 'Outdoor', 'Patio seating', 1)`;
+    await sql`INSERT INTO sections (id, restaurant_id, name, description, display_order) VALUES ('demo-bar', 'demo', 'Bar', 'Bar counter seating', 2)`;
+    await sql`INSERT INTO sections (id, restaurant_id, name, description, display_order) VALUES ('demo-private', 'demo', 'Private', 'Private dining room', 3)`;
 
-    // Seed default tables
     const defaultTables = [
-      { id: "t1", name: "Table 1", capacity: 2, section_id: "indoor" },
-      { id: "t2", name: "Table 2", capacity: 2, section_id: "indoor" },
-      { id: "t3", name: "Table 3", capacity: 4, section_id: "indoor" },
-      { id: "t4", name: "Table 4", capacity: 4, section_id: "indoor" },
-      { id: "t5", name: "Table 5", capacity: 6, section_id: "indoor" },
-      { id: "t6", name: "Table 6", capacity: 6, section_id: "indoor" },
-      { id: "t7", name: "Table 7", capacity: 8, section_id: "private" },
-      { id: "t8", name: "Patio 1", capacity: 4, section_id: "outdoor" },
-      { id: "t9", name: "Patio 2", capacity: 4, section_id: "outdoor" },
-      { id: "t10", name: "Patio 3", capacity: 6, section_id: "outdoor" },
-      { id: "t11", name: "Bar 1", capacity: 2, section_id: "bar" },
-      { id: "t12", name: "Bar 2", capacity: 2, section_id: "bar" },
+      { id: "demo-t1", name: "Table 1", capacity: 2, section_id: "demo-indoor" },
+      { id: "demo-t2", name: "Table 2", capacity: 2, section_id: "demo-indoor" },
+      { id: "demo-t3", name: "Table 3", capacity: 4, section_id: "demo-indoor" },
+      { id: "demo-t4", name: "Table 4", capacity: 4, section_id: "demo-indoor" },
+      { id: "demo-t5", name: "Table 5", capacity: 6, section_id: "demo-indoor" },
+      { id: "demo-t6", name: "Table 6", capacity: 6, section_id: "demo-indoor" },
+      { id: "demo-t7", name: "Table 7", capacity: 8, section_id: "demo-private" },
+      { id: "demo-t8", name: "Patio 1", capacity: 4, section_id: "demo-outdoor" },
+      { id: "demo-t9", name: "Patio 2", capacity: 4, section_id: "demo-outdoor" },
+      { id: "demo-t10", name: "Patio 3", capacity: 6, section_id: "demo-outdoor" },
+      { id: "demo-t11", name: "Bar 1", capacity: 2, section_id: "demo-bar" },
+      { id: "demo-t12", name: "Bar 2", capacity: 2, section_id: "demo-bar" },
     ];
+
     const sectionCounters: Record<string, number> = {};
     for (const t of defaultTables) {
       const idx = sectionCounters[t.section_id] ?? 0;
       sectionCounters[t.section_id] = idx + 1;
-
       const col = idx % 3;
       const row = Math.floor(idx / 3);
-      const x = 6 + col * 30;
-      const y = 8 + row * 22;
-      const w = 22;
-      const h = 18;
-
       await sql`
-        INSERT INTO tables (id, name, capacity, section_id, x, y, w, h)
-        VALUES (${t.id}, ${t.name}, ${t.capacity}, ${t.section_id}, ${x}, ${y}, ${w}, ${h})
+        INSERT INTO tables (id, name, capacity, section_id, restaurant_id, x, y, w, h)
+        VALUES (${t.id}, ${t.name}, ${t.capacity}, ${t.section_id}, 'demo', ${6 + col * 30}, ${8 + row * 22}, ${22}, ${18})
       `;
     }
   }
 
-  // Backfill missing floorplan geometry for existing tables
+  // Backfill missing floorplan geometry
   const { rows: missingLayout } = await sql`
-    SELECT id, section_id, name FROM tables
-    WHERE x IS NULL OR y IS NULL OR w IS NULL OR h IS NULL
-    ORDER BY section_id, name
+    SELECT id, section_id FROM tables WHERE x IS NULL OR y IS NULL OR w IS NULL OR h IS NULL ORDER BY section_id, name
   `;
-
   if (missingLayout.length > 0) {
     const counters: Record<string, number> = {};
     for (const row of missingLayout as Array<{ id: string; section_id: string }>) {
       const idx = counters[row.section_id] ?? 0;
       counters[row.section_id] = idx + 1;
-
       const col = idx % 3;
       const r = Math.floor(idx / 3);
-      const x = 6 + col * 30;
-      const y = 8 + r * 22;
-      const w = 22;
-      const h = 18;
-
-      await sql`UPDATE tables SET x = ${x}, y = ${y}, w = ${w}, h = ${h} WHERE id = ${row.id}`;
+      await sql`UPDATE tables SET x = ${6 + col * 30}, y = ${8 + r * 22}, w = ${22}, h = ${18} WHERE id = ${row.id}`;
     }
   }
+
+  _initialized = true;
 }
+
+// ---- Helpers ----
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
-}
-
-async function getReservationDuration(): Promise<number> {
-  const { rows } = await sql`SELECT reservation_duration_minutes FROM restaurant_settings WHERE id = 1`;
-  return rows[0]?.reservation_duration_minutes || 90;
 }
 
 function timesOverlap(time1: string, time2: string, durationMins: number): boolean {
@@ -186,40 +263,63 @@ function timesOverlap(time1: string, time2: string, durationMins: number): boole
   return Math.abs(mins1 - mins2) < durationMins;
 }
 
-// ---- Settings ----
+// ---- Restaurant ----
 
-export async function getSettings(): Promise<RestaurantSettings> {
+export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {
   await initDB();
-  const { rows } = await sql`SELECT * FROM restaurant_settings WHERE id = 1`;
+  const { rows } = await sql`SELECT * FROM restaurants WHERE slug = ${slug} LIMIT 1`;
+  return (rows[0] as Restaurant) ?? null;
+}
+
+export async function createRestaurant(slug: string, name: string): Promise<Restaurant> {
+  await initDB();
+  const id = slug; // slug doubles as id for simplicity
+  await sql`INSERT INTO restaurants (id, slug, name) VALUES (${id}, ${slug}, ${name})`;
+
+  // Create default settings
+  await sql`
+    INSERT INTO restaurant_settings (restaurant_id, name)
+    VALUES (${id}, ${name})
+  `;
+
+  const { rows } = await sql`SELECT * FROM restaurants WHERE id = ${id}`;
+  return rows[0] as Restaurant;
+}
+
+// ---- Settings (scoped) ----
+
+export async function getSettings(restaurantId: string): Promise<RestaurantSettings> {
+  await initDB();
+  const { rows } = await sql`SELECT * FROM restaurant_settings WHERE restaurant_id = ${restaurantId} LIMIT 1`;
   return rows[0] as RestaurantSettings;
 }
 
-export async function updateSettings(settings: Partial<RestaurantSettings>): Promise<RestaurantSettings> {
+export async function updateSettings(restaurantId: string, settings: Partial<RestaurantSettings>): Promise<RestaurantSettings> {
   await initDB();
-  if (settings.name !== undefined) await sql`UPDATE restaurant_settings SET name = ${settings.name} WHERE id = 1`;
-  if (settings.phone !== undefined) await sql`UPDATE restaurant_settings SET phone = ${settings.phone} WHERE id = 1`;
-  if (settings.address !== undefined) await sql`UPDATE restaurant_settings SET address = ${settings.address} WHERE id = 1`;
-  if (settings.open_time !== undefined) await sql`UPDATE restaurant_settings SET open_time = ${settings.open_time} WHERE id = 1`;
-  if (settings.close_time !== undefined) await sql`UPDATE restaurant_settings SET close_time = ${settings.close_time} WHERE id = 1`;
-  if (settings.last_seating !== undefined) await sql`UPDATE restaurant_settings SET last_seating = ${settings.last_seating} WHERE id = 1`;
-  if (settings.reservation_duration_minutes !== undefined) await sql`UPDATE restaurant_settings SET reservation_duration_minutes = ${settings.reservation_duration_minutes} WHERE id = 1`;
-  return getSettings();
+  if (settings.name !== undefined) await sql`UPDATE restaurant_settings SET name = ${settings.name} WHERE restaurant_id = ${restaurantId}`;
+  if (settings.phone !== undefined) await sql`UPDATE restaurant_settings SET phone = ${settings.phone} WHERE restaurant_id = ${restaurantId}`;
+  if (settings.address !== undefined) await sql`UPDATE restaurant_settings SET address = ${settings.address} WHERE restaurant_id = ${restaurantId}`;
+  if (settings.open_time !== undefined) await sql`UPDATE restaurant_settings SET open_time = ${settings.open_time} WHERE restaurant_id = ${restaurantId}`;
+  if (settings.close_time !== undefined) await sql`UPDATE restaurant_settings SET close_time = ${settings.close_time} WHERE restaurant_id = ${restaurantId}`;
+  if (settings.last_seating !== undefined) await sql`UPDATE restaurant_settings SET last_seating = ${settings.last_seating} WHERE restaurant_id = ${restaurantId}`;
+  if (settings.reservation_duration_minutes !== undefined) await sql`UPDATE restaurant_settings SET reservation_duration_minutes = ${settings.reservation_duration_minutes} WHERE restaurant_id = ${restaurantId}`;
+  return getSettings(restaurantId);
 }
 
-// ---- Sections ----
+// ---- Sections (scoped) ----
 
-export async function getSections(): Promise<Section[]> {
+export async function getSections(restaurantId: string): Promise<Section[]> {
   await initDB();
-  const { rows } = await sql`SELECT * FROM sections ORDER BY display_order`;
+  const { rows } = await sql`SELECT * FROM sections WHERE restaurant_id = ${restaurantId} ORDER BY display_order`;
   return rows as Section[];
 }
 
-export async function createSection(name: string, description?: string): Promise<Section> {
+export async function createSection(restaurantId: string, name: string, description?: string): Promise<Section> {
   await initDB();
-  const id = name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
-  const { rows: orderRows } = await sql`SELECT COALESCE(MAX(display_order), -1) + 1 as next_order FROM sections`;
+  const id = `${restaurantId}-${name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-")}`;
+  const { rows: orderRows } = await sql`SELECT COALESCE(MAX(display_order), -1) + 1 as next_order FROM sections WHERE restaurant_id = ${restaurantId}`;
   const order = orderRows[0].next_order;
-  await sql`INSERT INTO sections (id, name, description, display_order) VALUES (${id}, ${name}, ${description || null}, ${order})`;
+  await sql`INSERT INTO sections (id, restaurant_id, name, description, display_order) VALUES (${id}, ${restaurantId}, ${name}, ${description || null}, ${order})`;
   const { rows } = await sql`SELECT * FROM sections WHERE id = ${id}`;
   return rows[0] as Section;
 }
@@ -238,19 +338,21 @@ export async function deleteSection(id: string): Promise<boolean> {
   return (rowCount ?? 0) > 0;
 }
 
-// ---- Tables ----
+// ---- Tables (scoped) ----
 
-export async function getTables(): Promise<Table[]> {
+export async function getTables(restaurantId: string): Promise<Table[]> {
   await initDB();
   const { rows } = await sql`
-    SELECT t.*, s.name as section_name 
-    FROM tables t JOIN sections s ON t.section_id = s.id 
+    SELECT t.*, s.name as section_name
+    FROM tables t JOIN sections s ON t.section_id = s.id
+    WHERE t.restaurant_id = ${restaurantId}
     ORDER BY s.display_order, t.name
   `;
   return rows as Table[];
 }
 
 export async function createTable(
+  restaurantId: string,
   name: string,
   capacity: number,
   sectionId: string,
@@ -262,12 +364,10 @@ export async function createTable(
   const y = layout?.y ?? 8;
   const w = layout?.w ?? 22;
   const h = layout?.h ?? 18;
-
   await sql`
-    INSERT INTO tables (id, name, capacity, section_id, x, y, w, h)
-    VALUES (${id}, ${name}, ${capacity}, ${sectionId}, ${x}, ${y}, ${w}, ${h})
+    INSERT INTO tables (id, name, capacity, section_id, restaurant_id, x, y, w, h)
+    VALUES (${id}, ${name}, ${capacity}, ${sectionId}, ${restaurantId}, ${x}, ${y}, ${w}, ${h})
   `;
-
   const { rows } = await sql`SELECT t.*, s.name as section_name FROM tables t JOIN sections s ON t.section_id = s.id WHERE t.id = ${id}`;
   return rows[0] as Table;
 }
@@ -284,7 +384,6 @@ export async function updateTable(
   if (updates.y !== undefined) await sql`UPDATE tables SET y = ${updates.y} WHERE id = ${id}`;
   if (updates.w !== undefined) await sql`UPDATE tables SET w = ${updates.w} WHERE id = ${id}`;
   if (updates.h !== undefined) await sql`UPDATE tables SET h = ${updates.h} WHERE id = ${id}`;
-
   const { rows } = await sql`SELECT t.*, s.name as section_name FROM tables t JOIN sections s ON t.section_id = s.id WHERE t.id = ${id}`;
   return rows[0] as Table;
 }
@@ -295,61 +394,66 @@ export async function deleteTable(id: string): Promise<boolean> {
   return (rowCount ?? 0) > 0;
 }
 
-// ---- Reservations ----
+// ---- Reservations (scoped) ----
 
-export async function getReservations(date?: string): Promise<Reservation[]> {
+export async function getReservations(restaurantId: string, date?: string): Promise<Reservation[]> {
   await initDB();
   if (date) {
     const { rows } = await sql`
-      SELECT r.*, s.name as section_name 
-      FROM reservations r 
-      JOIN tables t ON r.table_id = t.id 
-      JOIN sections s ON t.section_id = s.id 
-      WHERE r.date = ${date} AND r.status = 'confirmed' 
+      SELECT r.*, s.name as section_name
+      FROM reservations r
+      JOIN tables t ON r.table_id = t.id
+      JOIN sections s ON t.section_id = s.id
+      WHERE r.restaurant_id = ${restaurantId} AND r.date = ${date} AND r.status = 'confirmed'
       ORDER BY r.time
     `;
     return rows as Reservation[];
   }
   const { rows } = await sql`
-    SELECT r.*, s.name as section_name 
-    FROM reservations r 
-    JOIN tables t ON r.table_id = t.id 
-    JOIN sections s ON t.section_id = s.id 
-    WHERE r.status = 'confirmed' 
+    SELECT r.*, s.name as section_name
+    FROM reservations r
+    JOIN tables t ON r.table_id = t.id
+    JOIN sections s ON t.section_id = s.id
+    WHERE r.restaurant_id = ${restaurantId} AND r.status = 'confirmed'
     ORDER BY r.date, r.time
   `;
   return rows as Reservation[];
 }
 
+async function getReservationDuration(restaurantId: string): Promise<number> {
+  const { rows } = await sql`SELECT reservation_duration_minutes FROM restaurant_settings WHERE restaurant_id = ${restaurantId}`;
+  return rows[0]?.reservation_duration_minutes || 90;
+}
+
 export async function checkAvailability(
+  restaurantId: string,
   date: string,
   time: string,
   partySize: number,
   section?: string
 ): Promise<{ available: boolean; tables: Table[]; alternativeTimes?: string[] }> {
   await initDB();
-  const durationMins = await getReservationDuration();
+  const durationMins = await getReservationDuration(restaurantId);
 
   let tables: Table[];
   if (section) {
-    // Match by section name (case-insensitive) or section id
     const { rows } = await sql`
-      SELECT t.*, s.name as section_name FROM tables t 
-      JOIN sections s ON t.section_id = s.id 
-      WHERE t.capacity >= ${partySize} AND (LOWER(s.name) = LOWER(${section}) OR s.id = ${section})
+      SELECT t.*, s.name as section_name FROM tables t
+      JOIN sections s ON t.section_id = s.id
+      WHERE t.restaurant_id = ${restaurantId} AND t.capacity >= ${partySize} AND (LOWER(s.name) = LOWER(${section}) OR s.id = ${section})
     `;
     tables = rows as Table[];
   } else {
     const { rows } = await sql`
-      SELECT t.*, s.name as section_name FROM tables t 
-      JOIN sections s ON t.section_id = s.id 
-      WHERE t.capacity >= ${partySize}
+      SELECT t.*, s.name as section_name FROM tables t
+      JOIN sections s ON t.section_id = s.id
+      WHERE t.restaurant_id = ${restaurantId} AND t.capacity >= ${partySize}
     `;
     tables = rows as Table[];
   }
 
   const { rows: dateReservations } = await sql`
-    SELECT * FROM reservations WHERE date = ${date} AND status = 'confirmed'
+    SELECT * FROM reservations WHERE restaurant_id = ${restaurantId} AND date = ${date} AND status = 'confirmed'
   `;
 
   const availableTables = tables.filter((table) => {
@@ -361,8 +465,7 @@ export async function checkAvailability(
     return { available: true, tables: availableTables };
   }
 
-  // Suggest alternatives
-  const settings = await getSettings();
+  const settings = await getSettings(restaurantId);
   const openMins = timeToMinutes(settings.open_time);
   const lastMins = timeToMinutes(settings.last_seating);
   const requestedMins = timeToMinutes(time);
@@ -372,12 +475,10 @@ export async function checkAvailability(
     const altMins = requestedMins + offset;
     if (altMins < openMins || altMins > lastMins) continue;
     const altTime = `${Math.floor(altMins / 60).toString().padStart(2, "0")}:${(altMins % 60).toString().padStart(2, "0")}`;
-
     const altAvailable = tables.some((table) => {
       const tableRes = dateReservations.filter((r) => r.table_id === table.id);
       return !tableRes.some((r) => timesOverlap(r.time, altTime, durationMins));
     });
-
     if (altAvailable) alternativeTimes.push(altTime);
   }
 
@@ -385,6 +486,7 @@ export async function checkAvailability(
 }
 
 export async function createReservation(
+  restaurantId: string,
   guestName: string,
   partySize: number,
   date: string,
@@ -393,7 +495,7 @@ export async function createReservation(
   phone?: string,
   preferredSection?: string
 ): Promise<Reservation | { error: string; alternativeTimes?: string[] }> {
-  const availability = await checkAvailability(date, time, partySize, preferredSection);
+  const availability = await checkAvailability(restaurantId, date, time, partySize, preferredSection);
 
   if (!availability.available) {
     return {
@@ -406,15 +508,13 @@ export async function createReservation(
   const id = `r${Date.now()}`;
 
   await sql`
-    INSERT INTO reservations (id, guest_name, party_size, date, time, table_id, special_requests, phone, status)
-    VALUES (${id}, ${guestName}, ${partySize}, ${date}, ${time}, ${table.id}, ${specialRequests || null}, ${phone || null}, 'confirmed')
+    INSERT INTO reservations (id, restaurant_id, guest_name, party_size, date, time, table_id, special_requests, phone, status)
+    VALUES (${id}, ${restaurantId}, ${guestName}, ${partySize}, ${date}, ${time}, ${table.id}, ${specialRequests || null}, ${phone || null}, 'confirmed')
   `;
 
   const { rows } = await sql`
-    SELECT r.*, s.name as section_name 
-    FROM reservations r 
-    JOIN tables t ON r.table_id = t.id 
-    JOIN sections s ON t.section_id = s.id 
+    SELECT r.*, s.name as section_name
+    FROM reservations r JOIN tables t ON r.table_id = t.id JOIN sections s ON t.section_id = s.id
     WHERE r.id = ${id}
   `;
   return rows[0] as Reservation;
@@ -437,18 +537,12 @@ export async function updateReservation(
   const newPhone = updates.phone || r.phone;
 
   await sql`
-    UPDATE reservations
-    SET guest_name = ${newName}, party_size = ${newSize}, date = ${newDate}, time = ${newTime},
-        special_requests = ${newRequests}, phone = ${newPhone}
-    WHERE id = ${reservationId}
+    UPDATE reservations SET guest_name = ${newName}, party_size = ${newSize}, date = ${newDate}, time = ${newTime},
+        special_requests = ${newRequests}, phone = ${newPhone} WHERE id = ${reservationId}
   `;
 
   const { rows: updated } = await sql`
-    SELECT r.*, s.name as section_name 
-    FROM reservations r 
-    JOIN tables t ON r.table_id = t.id 
-    JOIN sections s ON t.section_id = s.id 
-    WHERE r.id = ${reservationId}
+    SELECT r.*, s.name as section_name FROM reservations r JOIN tables t ON r.table_id = t.id JOIN sections s ON t.section_id = s.id WHERE r.id = ${reservationId}
   `;
   return updated[0] as Reservation;
 }
@@ -459,20 +553,20 @@ export async function cancelReservation(reservationId: string): Promise<boolean>
   return (rowCount ?? 0) > 0;
 }
 
-export async function findReservation(guestName: string, date?: string): Promise<Reservation[]> {
+export async function findReservation(restaurantId: string, guestName: string, date?: string): Promise<Reservation[]> {
   await initDB();
   if (date) {
     const { rows } = await sql`
       SELECT r.*, s.name as section_name FROM reservations r
       JOIN tables t ON r.table_id = t.id JOIN sections s ON t.section_id = s.id
-      WHERE LOWER(r.guest_name) LIKE ${'%' + guestName.toLowerCase() + '%'} AND r.date = ${date} AND r.status = 'confirmed'
+      WHERE r.restaurant_id = ${restaurantId} AND LOWER(r.guest_name) LIKE ${'%' + guestName.toLowerCase() + '%'} AND r.date = ${date} AND r.status = 'confirmed'
     `;
     return rows as Reservation[];
   }
   const { rows } = await sql`
     SELECT r.*, s.name as section_name FROM reservations r
     JOIN tables t ON r.table_id = t.id JOIN sections s ON t.section_id = s.id
-    WHERE LOWER(r.guest_name) LIKE ${'%' + guestName.toLowerCase() + '%'} AND r.status = 'confirmed'
+    WHERE r.restaurant_id = ${restaurantId} AND LOWER(r.guest_name) LIKE ${'%' + guestName.toLowerCase() + '%'} AND r.status = 'confirmed'
   `;
   return rows as Reservation[];
 }

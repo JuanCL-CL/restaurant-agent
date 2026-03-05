@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSettings, updateSettings, getSections, createSection, updateSection, deleteSection, getTables, createTable, updateTable, deleteTable, initDB } from "@/lib/db";
+import { getSettings, updateSettings, getSections, createSection, updateSection, deleteSection, getTables, createTable, updateTable, deleteTable } from "@/lib/db";
+import { resolveTenant } from "@/lib/tenant";
 
-// Legacy route — serves "demo" restaurant for backward compat
-const RID = "demo";
-
-export async function GET() {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
-    await initDB();
-    const settings = await getSettings(RID);
-    const sections = await getSections(RID);
-    const tables = await getTables(RID);
+    const { slug } = await params;
+    const restaurant = await resolveTenant(slug);
+    if (!restaurant) {
+      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    }
+
+    const settings = await getSettings(restaurant.id);
+    const sections = await getSections(restaurant.id);
+    const tables = await getTables(restaurant.id);
     return NextResponse.json({ settings, sections, tables });
   } catch (error) {
     console.error("Settings GET error:", error);
@@ -17,19 +20,24 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
-    await initDB();
+    const { slug } = await params;
+    const restaurant = await resolveTenant(slug);
+    if (!restaurant) {
+      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    }
+
     const body = await req.json();
     const { action } = body;
 
     switch (action) {
       case "update_settings": {
-        const result = await updateSettings(RID, body.settings);
+        const result = await updateSettings(restaurant.id, body.settings);
         return NextResponse.json({ settings: result });
       }
       case "create_section": {
-        const result = await createSection(RID, body.name, body.description);
+        const result = await createSection(restaurant.id, body.name, body.description);
         return NextResponse.json({ section: result });
       }
       case "update_section": {
@@ -41,7 +49,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success });
       }
       case "create_table": {
-        const result = await createTable(RID, body.name, body.capacity, body.section_id, {
+        const result = await createTable(restaurant.id, body.name, body.capacity, body.section_id, {
           x: body.x, y: body.y, w: body.w, h: body.h,
         });
         return NextResponse.json({ table: result });
