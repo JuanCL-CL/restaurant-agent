@@ -61,37 +61,66 @@ function withDefaults(t: FloorplanTable): Required<Pick<FloorplanTable, "x" | "y
   };
 }
 
-/* Chair dots around a table */
+/* Mini chair SVG — seat + backrest, rotated to face the table */
+function ChairIcon({ rotation, color }: { rotation: number; color: string }) {
+  return (
+    <svg
+      viewBox="0 0 14 14"
+      className="w-3.5 h-3.5"
+      style={{ transform: `rotate(${rotation}deg)` }}
+    >
+      {/* Backrest (top arc) */}
+      <path
+        d="M3 2 C3 0.5, 11 0.5, 11 2"
+        fill="none"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      {/* Seat */}
+      <rect x="3" y="3.5" width="8" height="6" rx="1.5" fill={color} opacity="0.55" />
+      {/* Seat outline */}
+      <rect x="3" y="3.5" width="8" height="6" rx="1.5" fill="none" stroke={color} strokeWidth="1" />
+    </svg>
+  );
+}
+
+/* Chairs around a table */
 function ChairDots({ capacity, isOpen }: { capacity: number; isOpen: boolean }) {
-  const count = Math.min(capacity, 10);
-  const dotColor = isOpen ? "bg-emerald-300" : "bg-amber-300";
-  // Distribute dots: top, bottom, left, right
+  const count = Math.min(capacity, 12);
+  const color = isOpen ? "#6ee7b7" : "#fbbf24";
+
+  // Distribute chairs: top, bottom, left, right
   const top = Math.ceil(count / 4);
   const bottom = Math.ceil((count - top) / 3);
   const left = Math.ceil((count - top - bottom) / 2);
   const right = count - top - bottom - left;
 
-  const dot = (key: string) => (
-    <div key={key} className={`w-2 h-2 rounded-full ${dotColor} opacity-70`} />
-  );
-
   return (
     <>
-      {/* Top chairs */}
-      <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex gap-1.5">
-        {Array.from({ length: top }, (_, i) => dot(`t${i}`))}
+      {/* Top — chairs face down (180°) */}
+      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 flex gap-1">
+        {Array.from({ length: top }, (_, i) => (
+          <ChairIcon key={`t${i}`} rotation={180} color={color} />
+        ))}
       </div>
-      {/* Bottom chairs */}
-      <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1.5">
-        {Array.from({ length: bottom }, (_, i) => dot(`b${i}`))}
+      {/* Bottom — chairs face up (0°) */}
+      <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 flex gap-1">
+        {Array.from({ length: bottom }, (_, i) => (
+          <ChairIcon key={`b${i}`} rotation={0} color={color} />
+        ))}
       </div>
-      {/* Left chairs */}
-      <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 flex flex-col gap-1.5">
-        {Array.from({ length: left }, (_, i) => dot(`l${i}`))}
+      {/* Left — chairs face right (90°) */}
+      <div className="absolute -left-3.5 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+        {Array.from({ length: left }, (_, i) => (
+          <ChairIcon key={`l${i}`} rotation={90} color={color} />
+        ))}
       </div>
-      {/* Right chairs */}
-      <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 flex flex-col gap-1.5">
-        {Array.from({ length: right }, (_, i) => dot(`r${i}`))}
+      {/* Right — chairs face left (270°) */}
+      <div className="absolute -right-3.5 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+        {Array.from({ length: right }, (_, i) => (
+          <ChairIcon key={`r${i}`} rotation={270} color={color} />
+        ))}
       </div>
     </>
   );
