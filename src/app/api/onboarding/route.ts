@@ -46,10 +46,13 @@ export async function POST(req: NextRequest) {
     const restaurant = await createRestaurant(slug, name.trim(), session.user.email);
 
     // Create a Vapi AI assistant with full restaurant context
+    let vapiError: string | null = null;
     try {
       const baseUrl = process.env.AUTH_URL || "https://www.mesacall.com";
+      console.log("[onboarding] Creating Vapi agent for:", restaurant.id, "baseUrl:", baseUrl);
       const settings = await getSettings(restaurant.id);
       const sections = await getSections(restaurant.id);
+      console.log("[onboarding] Settings:", settings?.name, "Sections:", sections?.length);
       const ctx: RestaurantContext = {
         name: settings.name,
         phone: settings.phone || undefined,
@@ -61,13 +64,15 @@ export async function POST(req: NextRequest) {
         sections: sections.map((s) => s.name),
       };
       const assistant = await createVapiAssistant(ctx, slug, baseUrl);
+      console.log("[onboarding] Vapi assistant created:", assistant.id);
       await setRestaurantVapiAssistant(restaurant.id, assistant.id);
     } catch (err) {
-      console.error("Failed to create Vapi assistant (restaurant still created):", err);
+      vapiError = String(err);
+      console.error("[onboarding] Failed to create Vapi assistant:", vapiError);
       // Non-fatal — restaurant is usable without AI agent, can retry later
     }
 
-    return NextResponse.json({ restaurant, redirect: `/r/${restaurant.slug}` });
+    return NextResponse.json({ restaurant, redirect: `/r/${restaurant.slug}`, vapiError });
   } catch (error) {
     console.error("Onboarding POST error:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
