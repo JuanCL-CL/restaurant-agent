@@ -9,6 +9,14 @@ import {
 } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
 
+/** Convert 24h time to spoken format: "20:00" → "8 PM", "19:30" → "7:30 PM" */
+function toSpokenTime(time24: string): string {
+  const [h, m] = time24.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hour12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return m === 0 ? `${hour12} ${ampm}` : `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseArgs(args: any): Record<string, any> {
   if (typeof args === "string") {
@@ -81,16 +89,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
           case "check_availability": {
             const { date, time, party_size, section } = args;
             const availability = await checkAvailability(restaurantId, date, time, party_size, section);
+
+            // Convert times to spoken format for AI
+            const spokenTime = toSpokenTime(time);
+            const spokenAlts = (availability.alternativeTimes || []).map(toSpokenTime);
+
             if (availability.available) {
               const secs = [...new Set(availability.tables.map((t) => t.section_name || t.section_id))];
               if (availability.sectionFallback && section) {
                 result = { available: true, sectionFallback: true, message: `We don't have "${section}" seating available for ${party_size} guests, but we do have availability in: ${secs.join(", ")}. Ask if one of those would work instead.`, sections: secs };
               } else {
-                result = { available: true, message: `Yes, we have availability for ${party_size} guests on ${date} at ${time}. Available sections: ${secs.join(", ")}.`, sections: secs };
+                result = { available: true, message: `Great news! We have a table for ${party_size} at ${spokenTime}. Available areas: ${secs.join(", ")}.`, sections: secs };
               }
             } else {
-              result = { available: false, message: `Sorry, we're fully booked for ${party_size} guests on ${date} at ${time}.`, alternativeTimes: availability.alternativeTimes,
-                suggestion: availability.alternativeTimes?.length ? `We do have openings at: ${availability.alternativeTimes.join(", ")}. Would any of those work?` : "Unfortunately we don't have any nearby time slots available for that date." };
+              const altMsg = spokenAlts.length ? `We do have openings at: ${spokenAlts.join(", ")}. Would any of those work?` : "Unfortunately we don't have any openings near that time on that date.";
+              result = { available: false, message: `Sorry, we're fully booked for ${party_size} at ${spokenTime} on that date.`, alternativeTimesSpoken: spokenAlts, suggestion: altMsg };
             }
             break;
           }
@@ -115,9 +128,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
           }
           case "find_reservation": {
             const reservations = await findReservation(restaurantId, args.guest_name, args.date);
-            result = reservations.length > 0
-              ? { found: true, reservations: reservations.map((r) => ({ id: r.id, name: r.guest_name, partySize: r.party_size, date: r.date, time: r.time, specialRequests: r.special_requests })) }
-              : { found: false, message: `I couldn't find a reservation under the name "${args.guest_name}".` };
+            if (reservations.length > 0) {
+              const formatted = reservations.map((r) => {
+                const d = new Date(r.date + "T12:00:00");
+                const dayNames3 = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+                const monthNames3 = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                const ordinal3 = (n: number) => { const s = ["th","st","nd","rd"]; const v = n % 100; return n + (s[(v-20)%10] || s[v] || s[0]); };
+                const spokenDate3 = `${dayNames3[d.getDay()]}, ${monthNames3[d.getMonth()]} ${ordinal3(d.getDate())}`;
+                return { id: r.id, name: r.guest_name, partySize: r.party_size, spokenDate: spokenDate3, spokenTime: toSpokenTime(r.time), specialRequests: r.special_requests };
+              });
+              const first = formatted[0];
+              result = { found: true, message: `Found a reservation for ${first.name}, party of ${first.partySize}, on ${first.spokenDate} at ${first.spokenTime}. Read this info naturally to the caller.`, reservations: formatted };
+            } else {
+              result = { found: false, message: `I couldn't find a reservation under the name "${args.guest_name}". Ask if they might have booked under a different name.` };
+            }
             break;
           }
           case "update_reservation": {
