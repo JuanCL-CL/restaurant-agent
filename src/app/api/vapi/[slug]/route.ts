@@ -26,7 +26,9 @@ function parseArgs(args: any): Record<string, any> {
 }
 
 function resolveRelativeDate(description: string): { date: string; spoken: string } {
-  const now = new Date();
+  // Use US Eastern time (restaurant's timezone) instead of UTC
+  const nowStr = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+  const now = new Date(nowStr);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dayOfWeek = today.getDay();
   const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];

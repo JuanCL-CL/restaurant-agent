@@ -38,13 +38,21 @@ interface Section {
   display_order: number;
 }
 
+/** Get local YYYY-MM-DD string (avoids UTC shift from toISOString) */
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function Dashboard({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
   const [loading, setLoading] = useState(true);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -94,7 +102,7 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
   const shiftDate = (days: number) => {
     const d = new Date(selectedDate + "T12:00:00");
     d.setDate(d.getDate() + days);
-    setSelectedDate(d.toISOString().split("T")[0]);
+    setSelectedDate(localDateStr(d));
   };
 
   const timeSlots = reservations.reduce((acc, r) => {
@@ -149,7 +157,7 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
               <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 justify-start sm:justify-center">
                 {[-1, 0, 1, 2, 3, 4, 5, 6].map((offset) => {
                   const d = new Date(); d.setDate(d.getDate() + offset);
-                  const dateStr = d.toISOString().split("T")[0];
+                  const dateStr = localDateStr(d);
                   const isSelected = dateStr === selectedDate;
                   const dayLabel = offset === 0 ? "Today" : offset === 1 ? "Tmrw" : d.toLocaleDateString("en-US", { weekday: "short" });
                   return (
@@ -194,7 +202,7 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
                       if (day === null) return <div key={`e${i}`} />;
                       const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                       const isSelected = dateStr === selectedDate;
-                      const isToday = dateStr === new Date().toISOString().split("T")[0];
+                      const isToday = dateStr === localDateStr(new Date());
                       return (<button key={dateStr} onClick={() => { setSelectedDate(dateStr); setCalendarOpen(false); }}
                         className={`h-10 rounded-lg text-sm font-medium transition ${isSelected ? "bg-slate-900 text-white" : isToday ? "bg-blue-50 text-blue-700 font-bold" : "text-slate-700 hover:bg-slate-100"}`}>{day}</button>);
                     })}
