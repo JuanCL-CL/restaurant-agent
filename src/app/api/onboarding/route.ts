@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     // Create a Vapi AI assistant for this restaurant
     try {
-      const baseUrl = process.env.AUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://restaurant-agent-red.vercel.app";
+      const baseUrl = process.env.AUTH_URL || "https://restaurant-agent-red.vercel.app";
       const assistant = await createVapiAssistant({ name: name.trim() }, slug, baseUrl);
       await setRestaurantVapiAssistant(restaurant.id, assistant.id);
     } catch (err) {
