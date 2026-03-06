@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import FloorplanCanvas from "@/components/FloorplanCanvas";
 import RestaurantSwitcher from "@/components/RestaurantSwitcher";
+import UserMenu from "@/components/UserMenu";
 
 interface Reservation {
   id: string;
@@ -130,6 +131,7 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
             <a href={`/r/${slug}/settings`} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition text-sm font-medium">
               ⚙️ Settings
             </a>
+            <UserMenu />
           </div>
         </div>
       </header>

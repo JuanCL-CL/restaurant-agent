@@ -4,6 +4,7 @@ import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import FloorplanCanvas from "@/components/FloorplanCanvas";
 import RestaurantSwitcher from "@/components/RestaurantSwitcher";
+import UserMenu from "@/components/UserMenu";
 
 interface Section {
   id: string;
@@ -196,12 +197,15 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
               <h1 className="text-xl font-bold text-slate-900">⚙️ Settings</h1>
             </div>
           </div>
-          <Link
-            href={`/r/${slug}`}
-            className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-zinc-200 transition text-sm font-medium"
-          >
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/r/${slug}`}
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-zinc-200 transition text-sm font-medium"
+            >
+              ← Dashboard
+            </Link>
+            <UserMenu />
+          </div>
         </div>
       </header>
 

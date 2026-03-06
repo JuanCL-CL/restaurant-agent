@@ -73,17 +73,6 @@ export default function RestaurantSwitcher({ currentSlug }: { currentSlug: strin
   }
 
   const current = restaurants.find((r) => r.slug === currentSlug);
-  if (restaurants.length <= 1 && !deleteTarget) {
-    return (
-      <div className="flex items-center gap-2.5">
-        <Logo size={30} />
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">{current?.name || "TableCall"}</h1>
-          <p className="text-xs text-slate-400">AI-Powered Reservations</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
