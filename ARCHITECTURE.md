@@ -150,8 +150,9 @@ NextAuth REQUIRES the `AUTH_URL` env var on Vercel. Without it, NextAuth uses `V
 - **Auto-sync** — saving settings triggers `updateVapiAssistant()` with full restaurant context
 - **Stable webhook URL** — must use `AUTH_URL` or hardcoded production URL, NOT `VERCEL_URL`
 
-### Vapi API Gotcha
-When PATCHing an assistant, sending `model.messages` without `model.tools` **WIPES the tools**. Always include both fields together.
+### Vapi API Gotchas
+- When PATCHing an assistant, sending `model.messages` without `model.tools` **WIPES the tools**. Always include both fields together.
+- **11Labs voice deprecation (March 2026):** Legacy 11Labs voice IDs (e.g., `21m00Tcm4TlvDq8ikWAM`) can't be used for new assistant creation via Vapi — existing assistants still work. Switched to Vapi-native voices. Active voices: Elliot, Savannah, Rohan, Emma, Clara, Nico, Kai, Sagar, Godfrey, Neil. Default: **Kai** (friendly, relaxed, approachable).
 
 ## Telephony (Twilio)
 

@@ -223,11 +223,8 @@ export async function createVapiAssistant(
       tools: TOOLS,
     },
     voice: {
-      provider: "11labs",
-      model: "eleven_turbo_v2_5",
-      voiceId: "21m00Tcm4TlvDq8ikWAM",
-      stability: 0.5,
-      similarityBoost: 0.75,
+      provider: "vapi",
+      voiceId: "Kai",
     },
     transcriber: {
       provider: "deepgram",
