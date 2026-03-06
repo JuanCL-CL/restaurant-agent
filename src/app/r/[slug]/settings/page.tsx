@@ -432,19 +432,44 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
           <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
             <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-b border-slate-200/60">
               <h2 className="text-lg font-semibold text-slate-900">📲 Connect Your Restaurant Phone</h2>
-              <p className="text-sm text-slate-400 mt-0.5">Set up call forwarding so your AI agent catches missed calls</p>
+              <p className="text-sm text-slate-400 mt-0.5">One quick step so your AI agent catches missed calls</p>
             </div>
             <div className="p-4 sm:p-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-                <div className="text-sm font-semibold text-blue-900 mb-1">How it works</div>
-                <p className="text-sm text-blue-700">
-                  When a customer calls your restaurant and nobody picks up, the call automatically forwards to your AI agent at{" "}
-                  <span className="font-mono font-bold">{restaurantInfo.twilio_phone}</span>. The AI greets them, takes reservations, and handles questions — just like a real receptionist.
+              {/* How it works — visual flow */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-5 mb-6">
+                <div className="text-sm font-semibold text-blue-900 mb-3">How it works</div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-sm text-blue-800">
+                  <div className="flex items-center gap-2">
+                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-xs font-bold text-blue-900">1</span>
+                    <span>Customer calls your restaurant</span>
+                  </div>
+                  <span className="hidden sm:inline text-blue-300">→</span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-xs font-bold text-blue-900">2</span>
+                    <span>Nobody picks up</span>
+                  </div>
+                  <span className="hidden sm:inline text-blue-300">→</span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-xs font-bold text-blue-900">3</span>
+                    <span>AI answers &amp; takes the reservation</span>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-600 mt-3">
+                  Your customers keep calling the same number they always have. You just need to tell your phone carrier to forward missed calls to your AI agent.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Setup by carrier</h3>
+              {/* Your AI agent number */}
+              <div className="bg-slate-50 rounded-xl border border-slate-200/60 p-4 mb-6">
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Your AI Agent&apos;s Phone Number</div>
+                <div className="font-mono text-lg font-bold text-slate-900 tracking-wide">
+                  {restaurantInfo.twilio_phone?.replace("+1", "(").replace(/(\d{3})(\d{3})(\d{4})/, "$1) $2-$3")}
+                </div>
+                <p className="text-xs text-slate-400 mt-1">This is the number your missed calls will be sent to</p>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Select your phone carrier, then follow the steps</h3>
 
                 {/* AT&T */}
                 <div className="rounded-xl border border-slate-200/60 overflow-hidden">
@@ -453,12 +478,29 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
                       <span className="font-semibold text-slate-900">AT&T</span>
                       <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
                     </summary>
-                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
-                      <p><strong>Forward when busy or unanswered:</strong></p>
-                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
-                        *61*{restaurantInfo.twilio_phone?.replace("+1", "")}#
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-3">
+                      <ol className="list-none space-y-3">
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">1</span>
+                          <span>Pick up your <strong>restaurant phone</strong> (the one customers call)</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">2</span>
+                          <div>
+                            <span>Dial this code exactly:</span>
+                            <div className="bg-slate-900 rounded-lg p-3 font-mono text-base text-white mt-2 tracking-widest select-all">
+                              *61*{restaurantInfo.twilio_phone?.replace("+1", "")}#
+                            </div>
+                          </div>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">3</span>
+                          <span>You should hear a confirmation tone or message. That&apos;s it — you&apos;re done! ✅</span>
+                        </li>
+                      </ol>
+                      <div className="text-xs text-slate-400 border-t border-slate-100 pt-2 mt-2">
+                        To turn off forwarding later, dial <span className="font-mono">##61#</span> from the same phone.
                       </div>
-                      <p className="text-xs text-slate-400">Dial this from your restaurant phone. To disable: ##61#</p>
                     </div>
                   </details>
                 </div>
@@ -470,12 +512,29 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
                       <span className="font-semibold text-slate-900">Verizon</span>
                       <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
                     </summary>
-                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
-                      <p><strong>Forward when no answer:</strong></p>
-                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
-                        *71{restaurantInfo.twilio_phone?.replace("+1", "")}
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-3">
+                      <ol className="list-none space-y-3">
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">1</span>
+                          <span>Pick up your <strong>restaurant phone</strong> (the one customers call)</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">2</span>
+                          <div>
+                            <span>Dial this code exactly:</span>
+                            <div className="bg-slate-900 rounded-lg p-3 font-mono text-base text-white mt-2 tracking-widest select-all">
+                              *71{restaurantInfo.twilio_phone?.replace("+1", "")}
+                            </div>
+                          </div>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">3</span>
+                          <span>Wait for a confirmation tone or message. That&apos;s it — you&apos;re done! ✅</span>
+                        </li>
+                      </ol>
+                      <div className="text-xs text-slate-400 border-t border-slate-100 pt-2 mt-2">
+                        To turn off forwarding later, dial <span className="font-mono">*73</span> from the same phone.
                       </div>
-                      <p className="text-xs text-slate-400">Dial from your restaurant phone. To disable: *73</p>
                     </div>
                   </details>
                 </div>
@@ -487,58 +546,96 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
                       <span className="font-semibold text-slate-900">T-Mobile</span>
                       <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
                     </summary>
-                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
-                      <p><strong>Forward when busy or unanswered:</strong></p>
-                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
-                        **61*+1{restaurantInfo.twilio_phone?.replace("+1", "")}#
-                      </div>
-                      <p className="text-xs text-slate-400">Dial from your restaurant phone. To disable: ##61#</p>
-                    </div>
-                  </details>
-                </div>
-
-                {/* VoIP / Landline */}
-                <div className="rounded-xl border border-slate-200/60 overflow-hidden">
-                  <details className="group">
-                    <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
-                      <span className="font-semibold text-slate-900">VoIP / Business landline</span>
-                      <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
-                    </summary>
-                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
-                      <p>Most business phone systems (RingCentral, Vonage, Google Voice, etc.) have call forwarding in their admin panel:</p>
-                      <ol className="list-decimal ml-5 space-y-1">
-                        <li>Go to your phone system&apos;s settings</li>
-                        <li>Find &quot;Call forwarding&quot; or &quot;Unanswered calls&quot;</li>
-                        <li>Set forward-to number:</li>
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-3">
+                      <ol className="list-none space-y-3">
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">1</span>
+                          <span>Pick up your <strong>restaurant phone</strong> (the one customers call)</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">2</span>
+                          <div>
+                            <span>Dial this code exactly:</span>
+                            <div className="bg-slate-900 rounded-lg p-3 font-mono text-base text-white mt-2 tracking-widest select-all">
+                              **61*+1{restaurantInfo.twilio_phone?.replace("+1", "")}#
+                            </div>
+                          </div>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">3</span>
+                          <span>Wait for a confirmation tone or message. That&apos;s it — you&apos;re done! ✅</span>
+                        </li>
                       </ol>
-                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
-                        {restaurantInfo.twilio_phone}
+                      <div className="text-xs text-slate-400 border-t border-slate-100 pt-2 mt-2">
+                        To turn off forwarding later, dial <span className="font-mono">##61#</span> from the same phone.
                       </div>
-                      <p>Set the ring timeout to 15–20 seconds (3–4 rings).</p>
                     </div>
                   </details>
                 </div>
 
-                {/* Generic */}
+                {/* VoIP / Business */}
                 <div className="rounded-xl border border-slate-200/60 overflow-hidden">
                   <details className="group">
                     <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
-                      <span className="font-semibold text-slate-900">Other carrier / not sure</span>
+                      <span className="font-semibold text-slate-900">VoIP / Business phone system</span>
                       <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
                     </summary>
-                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
-                      <p>Call your phone provider and ask them to set up <strong>conditional call forwarding</strong> (forward on no answer / busy) to:</p>
-                      <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
-                        {restaurantInfo.twilio_phone}
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-3">
+                      <p className="text-slate-500">For systems like RingCentral, Vonage, Google Voice, Ooma, 8x8, etc.</p>
+                      <ol className="list-none space-y-3">
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">1</span>
+                          <span>Log in to your phone system&apos;s <strong>admin panel</strong> or <strong>settings app</strong></span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">2</span>
+                          <span>Look for <strong>&quot;Call forwarding&quot;</strong>, <strong>&quot;Unanswered calls&quot;</strong>, or <strong>&quot;After hours routing&quot;</strong></span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">3</span>
+                          <div>
+                            <span>Set the forward-to number to:</span>
+                            <div className="bg-slate-900 rounded-lg p-3 font-mono text-base text-white mt-2 tracking-widest select-all">
+                              {restaurantInfo.twilio_phone}
+                            </div>
+                          </div>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">4</span>
+                          <span>Set the ring timeout to <strong>15–20 seconds</strong> (about 3–4 rings before forwarding)</span>
+                        </li>
+                      </ol>
+                    </div>
+                  </details>
+                </div>
+
+                {/* Not sure */}
+                <div className="rounded-xl border border-slate-200/60 overflow-hidden">
+                  <details className="group">
+                    <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
+                      <span className="font-semibold text-slate-900">I&apos;m not sure / Other carrier</span>
+                      <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="px-4 pb-4 text-sm text-slate-600 space-y-3">
+                      <p>No worries! Just call your phone provider and say:</p>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 italic">
+                        &quot;I&apos;d like to set up call forwarding so that when I don&apos;t answer, calls go to a different number.&quot;
                       </div>
-                      <p>This is a standard feature — every carrier supports it. There&apos;s usually no extra charge.</p>
+                      <div>
+                        <span>Then give them this number:</span>
+                        <div className="bg-slate-900 rounded-lg p-3 font-mono text-base text-white mt-2 tracking-widest select-all">
+                          {restaurantInfo.twilio_phone?.replace("+1", "(").replace(/(\d{3})(\d{3})(\d{4})/, "$1) $2-$3")}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400">This is a standard feature every carrier supports — it&apos;s usually free and takes about 2 minutes.</p>
                     </div>
                   </details>
                 </div>
               </div>
 
+              {/* Test tip */}
               <div className="mt-5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
-                <strong>💡 Tip:</strong> Test it by calling your restaurant number, letting it ring without answering, and seeing if the AI picks up.
+                <strong>✅ Test it:</strong> Call your restaurant number from a different phone, let it ring without answering, and see if the AI picks up. If it does — you&apos;re all set!
               </div>
             </div>
           </div>
