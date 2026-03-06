@@ -83,7 +83,7 @@ export default function RestaurantSwitcher({ currentSlug }: { currentSlug: strin
         >
           <Logo size={30} />
           <div>
-            <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <h1 className="text-base sm:text-xl font-bold text-slate-900 flex items-center gap-2 truncate">
               {current?.name || "TableCall"}
               <svg
                 className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
@@ -95,7 +95,7 @@ export default function RestaurantSwitcher({ currentSlug }: { currentSlug: strin
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </h1>
-            <p className="text-sm text-slate-400">AI-Powered Reservations</p>
+            <p className="text-xs sm:text-sm text-slate-400 hidden sm:block">AI-Powered Reservations</p>
           </div>
         </button>
 

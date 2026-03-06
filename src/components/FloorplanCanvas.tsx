@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 
 export type FloorplanTable = {
   id: string;
@@ -29,24 +29,16 @@ type Props = {
   onChange?: (tables: FloorplanTable[]) => void;
 };
 
-type DragState =
-  | null
-  | {
-      kind: "drag";
-      id: string;
-      startClientX: number;
-      startClientY: number;
-      startX: number;
-      startY: number;
-    }
-  | {
-      kind: "resize";
-      id: string;
-      startClientX: number;
-      startClientY: number;
-      startW: number;
-      startH: number;
-    };
+type DragState = {
+  kind: "drag" | "resize";
+  id: string;
+  startClientX: number;
+  startClientY: number;
+  startX: number;
+  startY: number;
+  startW: number;
+  startH: number;
+} | null;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -69,17 +61,8 @@ function ChairIcon({ rotation, color }: { rotation: number; color: string }) {
       className="w-3.5 h-3.5"
       style={{ transform: `rotate(${rotation}deg)` }}
     >
-      {/* Backrest (top arc) */}
-      <path
-        d="M3 2 C3 0.5, 11 0.5, 11 2"
-        fill="none"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      {/* Seat */}
+      <path d="M3 2 C3 0.5, 11 0.5, 11 2" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
       <rect x="3" y="3.5" width="8" height="6" rx="1.5" fill={color} opacity="0.55" />
-      {/* Seat outline */}
       <rect x="3" y="3.5" width="8" height="6" rx="1.5" fill="none" stroke={color} strokeWidth="1" />
     </svg>
   );
@@ -89,8 +72,6 @@ function ChairIcon({ rotation, color }: { rotation: number; color: string }) {
 function ChairDots({ capacity, isOpen }: { capacity: number; isOpen: boolean }) {
   const count = Math.min(capacity, 12);
   const color = isOpen ? "#6ee7b7" : "#fbbf24";
-
-  // Distribute chairs: top, bottom, left, right
   const top = Math.ceil(count / 4);
   const bottom = Math.ceil((count - top) / 3);
   const left = Math.ceil((count - top - bottom) / 2);
@@ -98,32 +79,30 @@ function ChairDots({ capacity, isOpen }: { capacity: number; isOpen: boolean }) 
 
   return (
     <>
-      {/* Top — chairs face down (180°) */}
       <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 flex gap-1">
-        {Array.from({ length: top }, (_, i) => (
-          <ChairIcon key={`t${i}`} rotation={180} color={color} />
-        ))}
+        {Array.from({ length: top }, (_, i) => <ChairIcon key={`t${i}`} rotation={180} color={color} />)}
       </div>
-      {/* Bottom — chairs face up (0°) */}
       <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 flex gap-1">
-        {Array.from({ length: bottom }, (_, i) => (
-          <ChairIcon key={`b${i}`} rotation={0} color={color} />
-        ))}
+        {Array.from({ length: bottom }, (_, i) => <ChairIcon key={`b${i}`} rotation={0} color={color} />)}
       </div>
-      {/* Left — chairs face right (90°) */}
       <div className="absolute -left-3.5 top-1/2 -translate-y-1/2 flex flex-col gap-1">
-        {Array.from({ length: left }, (_, i) => (
-          <ChairIcon key={`l${i}`} rotation={90} color={color} />
-        ))}
+        {Array.from({ length: left }, (_, i) => <ChairIcon key={`l${i}`} rotation={90} color={color} />)}
       </div>
-      {/* Right — chairs face left (270°) */}
       <div className="absolute -right-3.5 top-1/2 -translate-y-1/2 flex flex-col gap-1">
-        {Array.from({ length: right }, (_, i) => (
-          <ChairIcon key={`r${i}`} rotation={270} color={color} />
-        ))}
+        {Array.from({ length: right }, (_, i) => <ChairIcon key={`r${i}`} rotation={270} color={color} />)}
       </div>
     </>
   );
+}
+
+/** Extract clientX/clientY from mouse or touch event */
+function getClientXY(e: MouseEvent | TouchEvent): { clientX: number; clientY: number } | null {
+  if ("touches" in e) {
+    const touch = e.touches[0] || e.changedTouches[0];
+    if (!touch) return null;
+    return { clientX: touch.clientX, clientY: touch.clientY };
+  }
+  return { clientX: e.clientX, clientY: e.clientY };
 }
 
 export default function FloorplanCanvas({
@@ -133,10 +112,17 @@ export default function FloorplanCanvas({
   heightPx = 420,
   onChange,
 }: Props) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [drag, setDrag] = useState<DragState>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<DragState>(null);
+  const [, forceUpdate] = useState(0);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [openTableId, setOpenTableId] = useState<string | null>(null);
+
+  // Keep tables ref current for event handlers
+  const tablesRef = useRef(tables);
+  tablesRef.current = tables;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   const tablesWithDefaults = useMemo(() => {
     return tables.map((t) => ({ ...t, ...withDefaults(t) }));
@@ -144,65 +130,114 @@ export default function FloorplanCanvas({
 
   const updateTable = useCallback(
     (id: string, patch: Partial<FloorplanTable>) => {
-      const next = tables.map((t) => (t.id === id ? { ...t, ...patch } : t));
-      onChange?.(next);
+      const next = tablesRef.current.map((t) => (t.id === id ? { ...t, ...patch } : t));
+      onChangeRef.current?.(next);
     },
-    [tables, onChange]
+    []
   );
 
-  function getRect() {
-    return ref.current?.getBoundingClientRect() ?? null;
-  }
+  // Global move/end handlers (attached to window so they fire even if finger leaves the element)
+  useEffect(() => {
+    if (!editable) return;
 
-  function onPointerMove(e: React.PointerEvent) {
-    if (!editable || !drag) return;
-    const rect = getRect();
-    if (!rect) return;
+    function handleMove(e: MouseEvent | TouchEvent) {
+      const drag = dragRef.current;
+      if (!drag) return;
+      e.preventDefault(); // Prevent scroll during drag
 
-    const dxPct = ((e.clientX - drag.startClientX) / rect.width) * 100;
-    const dyPct = ((e.clientY - drag.startClientY) / rect.height) * 100;
+      const pos = getClientXY(e);
+      if (!pos) return;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
 
-    if (drag.kind === "drag") {
-      const t = tablesWithDefaults.find((x) => x.id === drag.id);
+      const dxPct = ((pos.clientX - drag.startClientX) / rect.width) * 100;
+      const dyPct = ((pos.clientY - drag.startClientY) / rect.height) * 100;
+
+      const currentTables = tablesRef.current;
+      const t = currentTables.find((x) => x.id === drag.id);
       if (!t) return;
-      updateTable(drag.id, {
-        x: clamp(drag.startX + dxPct, 0, 100 - t.w!),
-        y: clamp(drag.startY + dyPct, 0, 100 - t.h!),
-      });
+      const td = { ...withDefaults(t) };
+
+      if (drag.kind === "drag") {
+        updateTable(drag.id, {
+          x: clamp(drag.startX + dxPct, 0, 100 - td.w),
+          y: clamp(drag.startY + dyPct, 0, 100 - td.h),
+        });
+      } else if (drag.kind === "resize") {
+        updateTable(drag.id, {
+          w: clamp(drag.startW + dxPct, 8, 100 - (t.x ?? 5)),
+          h: clamp(drag.startH + dyPct, 8, 100 - (t.y ?? 8)),
+        });
+      }
     }
 
-    if (drag.kind === "resize") {
-      const t = tablesWithDefaults.find((x) => x.id === drag.id);
-      if (!t) return;
-      updateTable(drag.id, {
-        w: clamp(drag.startW + dxPct, 8, 100 - t.x!),
-        h: clamp(drag.startH + dyPct, 8, 100 - t.y!),
-      });
+    function handleEnd() {
+      if (dragRef.current) {
+        dragRef.current = null;
+        forceUpdate((n) => n + 1);
+      }
     }
+
+    // Use passive: false so we can preventDefault on touchmove
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleEnd);
+    window.addEventListener("touchcancel", handleEnd);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleEnd);
+      window.removeEventListener("touchcancel", handleEnd);
+    };
+  }, [editable, updateTable]);
+
+  function startDrag(id: string, kind: "drag" | "resize", e: React.MouseEvent | React.TouchEvent) {
+    e.stopPropagation();
+    if ("button" in e && e.button !== 0) return;
+
+    // Prevent default touch behavior (scrolling)
+    if ("touches" in e) {
+      e.preventDefault();
+    }
+
+    const pos = "touches" in e
+      ? { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }
+      : { clientX: e.clientX, clientY: e.clientY };
+
+    const t = tablesWithDefaults.find((x) => x.id === id);
+    if (!t) return;
+
+    dragRef.current = {
+      kind,
+      id,
+      startClientX: pos.clientX,
+      startClientY: pos.clientY,
+      startX: t.x,
+      startY: t.y,
+      startW: t.w,
+      startH: t.h,
+    };
+    setSelectedTableId(id);
+    forceUpdate((n) => n + 1);
   }
 
-  function endDrag() {
-    setDrag(null);
-  }
-
-  const isDragging = drag !== null;
+  const isDragging = dragRef.current !== null;
 
   return (
     <div
-      ref={ref}
+      ref={canvasRef}
       className="relative w-full rounded-2xl border border-slate-200/60 overflow-hidden"
       style={{
         height: `${heightPx}px`,
         background: editable
           ? "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)"
           : "linear-gradient(135deg, #fafbfc 0%, #f3f5f8 100%)",
+        touchAction: editable ? "none" : "auto",
       }}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onPointerLeave={() => { if (drag) endDrag(); }}
       onClick={() => {
-        // Click on empty canvas area — deselect
         if (!editable) setOpenTableId(null);
         setSelectedTableId(null);
       }}
@@ -229,7 +264,7 @@ export default function FloorplanCanvas({
         const tableReservations = (reservationsByTableId?.[t.id] || []).slice().sort((a, b) => a.time.localeCompare(b.time));
         const isOpen = !booked;
         const isSelected = selectedTableId === t.id;
-        const isBeingDragged = drag?.id === t.id;
+        const isBeingDragged = dragRef.current?.id === t.id;
 
         const borderColor = isSelected
           ? "border-blue-400 ring-2 ring-blue-200/60"
@@ -253,21 +288,10 @@ export default function FloorplanCanvas({
               width: `${t.w}%`,
               height: `${t.h}%`,
               transition: isDragging ? "none" : "box-shadow 0.15s ease, border-color 0.15s ease",
+              touchAction: "none",
             }}
-            onPointerDown={(e) => {
-              if (!editable) return;
-              if (e.button !== 0) return;
-              (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-              setSelectedTableId(t.id);
-              setDrag({
-                kind: "drag",
-                id: t.id,
-                startClientX: e.clientX,
-                startClientY: e.clientY,
-                startX: t.x!,
-                startY: t.y!,
-              });
-            }}
+            onMouseDown={(e) => editable && startDrag(t.id, "drag", e)}
+            onTouchStart={(e) => editable && startDrag(t.id, "drag", e)}
             onClick={(e) => {
               e.stopPropagation();
               if (editable) {
@@ -277,10 +301,10 @@ export default function FloorplanCanvas({
               }
             }}
           >
-            {/* Chair dots (edit mode only for visual reference) */}
+            {/* Chair dots (edit mode) */}
             {editable && <ChairDots capacity={t.capacity} isOpen={isOpen} />}
 
-            <div className="p-2 h-full flex flex-col justify-center items-center text-center relative">
+            <div className="p-2 h-full flex flex-col justify-center items-center text-center relative pointer-events-none">
               <div className="text-sm font-bold text-slate-800 truncate max-w-full leading-tight">{t.name}</div>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="text-[11px] text-slate-500">
@@ -310,23 +334,12 @@ export default function FloorplanCanvas({
             {/* Resize handle (edit mode) */}
             {editable && (
               <div
-                className="absolute right-0.5 bottom-0.5 w-4 h-4 cursor-nwse-resize group"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  if (e.button !== 0) return;
-                  (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-                  setDrag({
-                    kind: "resize",
-                    id: t.id,
-                    startClientX: e.clientX,
-                    startClientY: e.clientY,
-                    startW: t.w!,
-                    startH: t.h!,
-                  });
-                }}
+                className="absolute right-0 bottom-0 w-8 h-8 cursor-nwse-resize group"
+                style={{ touchAction: "none" }}
+                onMouseDown={(e) => { e.stopPropagation(); startDrag(t.id, "resize", e); }}
+                onTouchStart={(e) => { e.stopPropagation(); startDrag(t.id, "resize", e); }}
               >
-                {/* Three diagonal lines — classic resize icon */}
-                <svg viewBox="0 0 16 16" className="w-full h-full text-slate-400 group-hover:text-slate-600 transition-colors">
+                <svg viewBox="0 0 16 16" className="w-4 h-4 absolute right-1 bottom-1 text-slate-400 group-hover:text-slate-600 transition-colors">
                   <line x1="14" y1="4" x2="4" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   <line x1="14" y1="8" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   <line x1="14" y1="12" x2="12" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -341,7 +354,6 @@ export default function FloorplanCanvas({
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="bg-white rounded-xl border border-slate-200 shadow-xl p-4 relative">
-                  {/* Arrow */}
                   <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
                   <div className="relative">
                     <div className="flex items-center justify-between mb-2">
@@ -392,7 +404,7 @@ export default function FloorplanCanvas({
 
       {/* Help bar (edit mode) */}
       {editable && tablesWithDefaults.length > 0 && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-3 flex items-center gap-4 text-[11px] text-slate-400 bg-white/90 backdrop-blur-sm border border-slate-200/60 rounded-full px-4 py-1.5 shadow-sm">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-3 flex items-center gap-2 sm:gap-4 text-[10px] sm:text-[11px] text-slate-400 bg-white/90 backdrop-blur-sm border border-slate-200/60 rounded-full px-3 sm:px-4 py-1.5 shadow-sm max-w-[calc(100%-2rem)]">
           <span className="flex items-center gap-1">
             <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[10px] font-mono">drag</kbd> move
           </span>
@@ -405,8 +417,8 @@ export default function FloorplanCanvas({
             </svg>
             resize
           </span>
-          <span className="text-slate-200">|</span>
-          <span>Don&apos;t forget to <strong className="text-slate-600">Save Layout</strong></span>
+          <span className="text-slate-200 hidden sm:inline">|</span>
+          <span className="hidden sm:inline">Don&apos;t forget to <strong className="text-slate-600">Save Layout</strong></span>
         </div>
       )}
     </div>

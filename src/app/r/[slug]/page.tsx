@@ -120,33 +120,33 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
 
   return (
     <div className="min-h-screen bg-[#eef0f4]">
-      <header className="bg-[#ffffff]/90 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header className="bg-[#ffffff]/95 backdrop-blur-md border-b border-slate-200/60 sm:fixed sm:top-0 sm:left-0 sm:right-0 z-30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <RestaurantSwitcher currentSlug={slug} />
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden sm:flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
               <span className="text-sm text-slate-500">Agent Active</span>
             </div>
             <a href={`/r/${slug}/settings`} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition text-sm font-medium">
-              ⚙️ Settings
+              ⚙️ <span className="hidden sm:inline">Settings</span>
             </a>
             <UserMenu />
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:pt-24">
         {/* Date Navigation */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 p-6 mb-8">
+        <div className="bg-white rounded-2xl border border-slate-200/60 p-4 sm:p-6 mb-4 sm:mb-8">
           <div className="flex items-center justify-between">
-            <button onClick={() => shiftDate(-1)} className="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition text-slate-500 text-lg font-medium">‹</button>
-            <div className="flex-1 text-center">
-              <h2 className="text-3xl font-bold text-slate-900 mb-1">{formatDateDisplay(selectedDate)}</h2>
-              <p className="text-sm text-slate-400 mb-3">
+            <button onClick={() => shiftDate(-1)} className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition text-slate-500 text-lg font-medium">‹</button>
+            <div className="flex-1 text-center min-w-0">
+              <h2 className="text-xl sm:text-3xl font-bold text-slate-900 mb-1">{formatDateDisplay(selectedDate)}</h2>
+              <p className="text-xs sm:text-sm text-slate-400 mb-3">
                 {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
               </p>
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 justify-start sm:justify-center">
                 {[-1, 0, 1, 2, 3, 4, 5, 6].map((offset) => {
                   const d = new Date(); d.setDate(d.getDate() + offset);
                   const dateStr = d.toISOString().split("T")[0];
@@ -154,20 +154,20 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
                   const dayLabel = offset === 0 ? "Today" : offset === 1 ? "Tmrw" : d.toLocaleDateString("en-US", { weekday: "short" });
                   return (
                     <button key={offset} onClick={() => setSelectedDate(dateStr)}
-                      className={`flex flex-col items-center px-3 py-2 rounded-xl transition min-w-[52px] ${isSelected ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>
+                      className={`flex flex-col items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition min-w-[44px] sm:min-w-[52px] flex-shrink-0 ${isSelected ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>
                       <span className="text-[10px] font-semibold uppercase tracking-wide">{dayLabel}</span>
                       <span className={`text-lg font-bold ${isSelected ? "text-white" : "text-slate-700"}`}>{d.getDate()}</span>
                     </button>
                   );
                 })}
                 <button onClick={() => { const d = new Date(selectedDate + "T12:00:00"); setCalendarMonth({ year: d.getFullYear(), month: d.getMonth() }); setCalendarOpen(!calendarOpen); }}
-                  className={`flex flex-col items-center px-3 py-2 rounded-xl transition min-w-[52px] cursor-pointer ${calendarOpen ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>
+                  className={`flex flex-col items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition min-w-[44px] sm:min-w-[52px] flex-shrink-0 cursor-pointer ${calendarOpen ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>
                   <span className="text-[10px] font-semibold uppercase tracking-wide">More</span>
                   <span className="text-lg font-bold">📅</span>
                 </button>
               </div>
             </div>
-            <button onClick={() => shiftDate(1)} className="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition text-slate-500 text-lg font-medium">›</button>
+            <button onClick={() => shiftDate(1)} className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition text-slate-500 text-lg font-medium">›</button>
           </div>
 
           {calendarOpen && (() => {
@@ -206,7 +206,7 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-8">
           {[{ icon: "📋", val: reservations.length, label: "Reservations", bg: "bg-blue-50" },
             { icon: "👥", val: totalGuests, label: "Total Guests", bg: "bg-emerald-50" },
             { icon: "🪑", val: sortedSlots.length, label: "Time Slots", bg: "bg-amber-50" },
@@ -221,10 +221,10 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
         </div>
 
         {/* Floorplan */}
-        <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 p-6 mb-8">
-          <div className="flex items-center justify-between mb-5">
-            <div><h3 className="text-lg font-semibold text-slate-900">Floorplan</h3><p className="text-sm text-slate-400">Tap a table to see its reservations for {formatDateDisplay(selectedDate)}</p></div>
-            <div className="text-sm text-slate-400">{tables.length} table{tables.length !== 1 ? "s" : ""}</div>
+        <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 p-4 sm:p-6 mb-4 sm:mb-8">
+          <div className="flex items-center justify-between mb-4 sm:mb-5">
+            <div><h3 className="text-base sm:text-lg font-semibold text-slate-900">Floorplan</h3><p className="text-xs sm:text-sm text-slate-400">Tap a table to see its reservations for {formatDateDisplay(selectedDate)}</p></div>
+            <div className="text-xs sm:text-sm text-slate-400">{tables.length} table{tables.length !== 1 ? "s" : ""}</div>
           </div>
           {loading ? (<div className="py-10 text-center text-slate-400">Loading floorplan…</div>)
             : tables.length === 0 ? (<div className="py-10 text-center"><div className="text-slate-500 font-medium">No tables configured yet</div><div className="text-slate-400 text-sm mt-1">Add sections/tables in Settings.</div></div>)

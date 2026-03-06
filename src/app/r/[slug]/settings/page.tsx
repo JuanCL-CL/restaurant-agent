@@ -188,21 +188,21 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
   return (
     <div className="min-h-screen bg-[#eef0f4]">
       {/* Header */}
-      <header className="bg-[#ffffff]/90 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <header className="bg-[#ffffff]/95 backdrop-blur-md border-b border-slate-200/60 sm:fixed sm:top-0 sm:left-0 sm:right-0 z-30">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <RestaurantSwitcher currentSlug={slug} />
-            <span className="text-slate-300">›</span>
-            <div>
+            <span className="text-slate-300 hidden sm:inline">›</span>
+            <div className="hidden sm:block">
               <h1 className="text-xl font-bold text-slate-900">⚙️ Settings</h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href={`/r/${slug}`}
-              className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-zinc-200 transition text-sm font-medium"
+              className="px-3 sm:px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-zinc-200 transition text-sm font-medium"
             >
-              ← Dashboard
+              ← <span className="hidden sm:inline">Dashboard</span><span className="sm:hidden">Back</span>
             </Link>
             <UserMenu />
           </div>
@@ -218,29 +218,29 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
         </div>
       )}
 
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:pt-24 space-y-4 sm:space-y-8">
         {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-[#ffffff] rounded-2xl p-5 border border-slate-200/60 text-center">
-            <p className="text-3xl font-bold text-slate-900">{sections.length}</p>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="bg-[#ffffff] rounded-2xl p-3 sm:p-5 border border-slate-200/60 text-center">
+            <p className="text-2xl sm:text-3xl font-bold text-slate-900">{sections.length}</p>
             <p className="text-xs text-slate-400 mt-1">Sections</p>
           </div>
-          <div className="bg-[#ffffff] rounded-2xl p-5 border border-slate-200/60 text-center">
-            <p className="text-3xl font-bold text-slate-900">{totalTables}</p>
+          <div className="bg-[#ffffff] rounded-2xl p-3 sm:p-5 border border-slate-200/60 text-center">
+            <p className="text-2xl sm:text-3xl font-bold text-slate-900">{totalTables}</p>
             <p className="text-xs text-slate-400 mt-1">Tables</p>
           </div>
-          <div className="bg-[#ffffff] rounded-2xl p-5 border border-slate-200/60 text-center">
-            <p className="text-3xl font-bold text-slate-900">{totalSeats}</p>
+          <div className="bg-[#ffffff] rounded-2xl p-3 sm:p-5 border border-slate-200/60 text-center">
+            <p className="text-2xl sm:text-3xl font-bold text-slate-900">{totalSeats}</p>
             <p className="text-xs text-slate-400 mt-1">Total Seats</p>
           </div>
         </div>
 
         {/* Restaurant Info */}
         <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-b border-slate-200/60">
             <h2 className="text-lg font-semibold text-slate-900">🏪 Restaurant Info</h2>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-medium text-slate-500 mb-1.5">Restaurant Name</label>
@@ -276,7 +276,7 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
 
             <div className="mt-6 pt-6 border-t border-slate-200/60">
               <h3 className="text-sm font-semibold text-slate-400 mb-4 uppercase tracking-wider">Hours</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-500 mb-1.5">Opens</label>
                   <input
@@ -321,10 +321,10 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
 
         {/* AI Agent */}
         <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-b border-slate-200/60">
             <h2 className="text-lg font-semibold text-slate-900">🤖 AI Phone Agent</h2>
           </div>
-          <div className="p-6 space-y-5">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
             {/* Agent status */}
             <div className="flex items-start gap-4">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${restaurantInfo?.vapi_assistant_id ? "bg-emerald-50" : "bg-slate-100"}`}>
@@ -430,11 +430,11 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
         {/* Call Forwarding Setup Guide */}
         {restaurantInfo?.twilio_phone && (
           <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-b border-slate-200/60">
               <h2 className="text-lg font-semibold text-slate-900">📲 Connect Your Restaurant Phone</h2>
               <p className="text-sm text-slate-400 mt-0.5">Set up call forwarding so your AI agent catches missed calls</p>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
                 <div className="text-sm font-semibold text-blue-900 mb-1">How it works</div>
                 <p className="text-sm text-blue-700">
@@ -546,7 +546,7 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
 
         {/* Floorplan Editor */}
         <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">🗺️ Floorplan Editor</h2>
               <p className="text-sm text-slate-400">Drag tables to position them. Drag the bottom-right corner to resize.</p>
@@ -561,7 +561,7 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
               {savingLayout ? "Saving…" : "Save Layout"}
             </button>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {sections.length === 0 ? (
               <div className="py-10 text-center text-slate-400">Add a section below first, then arrange tables here.</div>
             ) : (
@@ -607,11 +607,11 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
 
         {/* Seating Layout (table list) */}
         <div className="bg-[#ffffff] rounded-2xl border border-slate-200/60 overflow-hidden">
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">🪑 Seating Layout</h2>
             <p className="text-sm text-slate-400">{totalTables} tables · {totalSeats} seats</p>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="space-y-5 mb-8">
               {sections.map((section) => {
                 const sectionTables = tables.filter((t) => t.section_id === section.id);
@@ -683,13 +683,14 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
                       )}
 
                       {/* Quick add */}
-                      <div className="flex gap-2 pt-3 border-t border-dashed border-slate-200/60">
+                      <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-dashed border-slate-200/60">
                         <input
                           type="text"
                           placeholder={`Add table to ${section.name}...`}
                           id={`new-table-name-${section.id}`}
                           className="flex-1 bg-[#ffffff] border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                         />
+                        <div className="flex gap-2">
                         <input
                           type="number"
                           placeholder="Seats"
@@ -722,6 +723,7 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
                         >
                           + Add
                         </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -730,9 +732,9 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
             </div>
 
             {/* New Section */}
-            <div className="bg-[#eef0f4] rounded-xl p-5 border border-dashed border-slate-200">
+            <div className="bg-[#eef0f4] rounded-xl p-4 sm:p-5 border border-dashed border-slate-200">
               <h3 className="text-sm font-semibold text-slate-400 mb-3">Add New Section</h3>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <input
                   type="text"
                   placeholder="Section name (e.g., Rooftop, Upstairs)"
