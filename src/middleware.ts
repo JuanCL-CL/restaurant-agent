@@ -11,6 +11,7 @@ export default auth((req) => {
     pathname === "/onboarding" ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/vapi") ||       // Vapi webhooks must be unauthenticated
+    pathname.startsWith("/api/debug") ||     // Temporary debug endpoints
     pathname.startsWith("/api/onboarding") ||  // Onboarding API
     pathname.startsWith("/auth/") ||           // Auth error page
     pathname.startsWith("/_next") ||
