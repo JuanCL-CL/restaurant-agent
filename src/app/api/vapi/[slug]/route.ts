@@ -83,7 +83,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
             const availability = await checkAvailability(restaurantId, date, time, party_size, section);
             if (availability.available) {
               const secs = [...new Set(availability.tables.map((t) => t.section_name || t.section_id))];
-              result = { available: true, message: `Yes, we have availability for ${party_size} guests on ${date} at ${time}. Available sections: ${secs.join(", ")}.`, sections: secs };
+              if (availability.sectionFallback && section) {
+                result = { available: true, sectionFallback: true, message: `We don't have "${section}" seating available for ${party_size} guests, but we do have availability in: ${secs.join(", ")}. Ask if one of those would work instead.`, sections: secs };
+              } else {
+                result = { available: true, message: `Yes, we have availability for ${party_size} guests on ${date} at ${time}. Available sections: ${secs.join(", ")}.`, sections: secs };
+              }
             } else {
               result = { available: false, message: `Sorry, we're fully booked for ${party_size} guests on ${date} at ${time}.`, alternativeTimes: availability.alternativeTimes,
                 suggestion: availability.alternativeTimes?.length ? `We do have openings at: ${availability.alternativeTimes.join(", ")}. Would any of those work?` : "Unfortunately we don't have any nearby time slots available for that date." };

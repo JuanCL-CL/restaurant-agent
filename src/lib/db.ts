@@ -438,25 +438,53 @@ export async function checkAvailability(
   time: string,
   partySize: number,
   section?: string
-): Promise<{ available: boolean; tables: Table[]; alternativeTimes?: string[] }> {
+): Promise<{ available: boolean; tables: Table[]; alternativeTimes?: string[]; sectionFallback?: boolean }> {
   await initDB();
   const durationMins = await getReservationDuration(restaurantId);
 
+  // Get all tables with enough capacity
+  const { rows: allMatchingTables } = await sql`
+    SELECT t.*, s.name as section_name FROM tables t
+    JOIN sections s ON t.section_id = s.id
+    WHERE t.restaurant_id = ${restaurantId} AND t.capacity >= ${partySize}
+  `;
+  const allTables = allMatchingTables as Table[];
+
+  // If a section preference was given, try to match it flexibly
   let tables: Table[];
+  let sectionFallback = false;
   if (section) {
-    const { rows } = await sql`
-      SELECT t.*, s.name as section_name FROM tables t
-      JOIN sections s ON t.section_id = s.id
-      WHERE t.restaurant_id = ${restaurantId} AND t.capacity >= ${partySize} AND (LOWER(s.name) = LOWER(${section}) OR s.id = ${section})
-    `;
-    tables = rows as Table[];
+    const sectionLower = section.toLowerCase();
+    // Fuzzy match: check if section name contains the search term or vice versa
+    // e.g. "outside" matches "Outdoor", "patio" matches "Patio Dining"
+    const sectionSynonyms: Record<string, string[]> = {
+      outdoor: ["outside", "outdoors", "patio", "terrace", "garden", "al fresco", "exterior"],
+      indoor: ["inside", "indoors", "interior", "main", "dining room"],
+      bar: ["lounge", "counter", "high top", "high-top"],
+      private: ["vip", "private room", "private dining"],
+    };
+
+    tables = allTables.filter((t) => {
+      const name = (t.section_name || "").toLowerCase();
+      // Direct match
+      if (name === sectionLower || name.includes(sectionLower) || sectionLower.includes(name)) return true;
+      // Synonym match
+      for (const [canonical, synonyms] of Object.entries(sectionSynonyms)) {
+        const allTerms = [canonical, ...synonyms];
+        const nameMatches = allTerms.some((term) => name.includes(term));
+        const queryMatches = allTerms.some((term) => sectionLower.includes(term));
+        if (nameMatches && queryMatches) return true;
+      }
+      return false;
+    });
+
+    // If no tables in requested section, fall back to all tables
+    if (tables.length === 0) {
+      tables = allTables;
+      sectionFallback = true;
+    }
   } else {
-    const { rows } = await sql`
-      SELECT t.*, s.name as section_name FROM tables t
-      JOIN sections s ON t.section_id = s.id
-      WHERE t.restaurant_id = ${restaurantId} AND t.capacity >= ${partySize}
-    `;
-    tables = rows as Table[];
+    tables = allTables;
   }
 
   const { rows: dateReservations } = await sql`
@@ -469,7 +497,7 @@ export async function checkAvailability(
   });
 
   if (availableTables.length > 0) {
-    return { available: true, tables: availableTables };
+    return { available: true, tables: availableTables, sectionFallback };
   }
 
   const settings = await getSettings(restaurantId);
