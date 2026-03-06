@@ -36,6 +36,10 @@ export default function OnboardingPage() {
       setError("Name must be at least 2 characters");
       return;
     }
+    if (name.trim().length > 50) {
+      setError("Name must be 50 characters or less");
+      return;
+    }
 
     setCreating(true);
     setError("");
@@ -121,6 +125,7 @@ export default function OnboardingPage() {
               onChange={(e) => { setName(e.target.value); setError(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="e.g. Marco's Italian Kitchen"
+              maxLength={50}
               autoFocus
               className="w-full bg-[#eef0f4] border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-lg"
             />

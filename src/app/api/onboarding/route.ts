@@ -32,6 +32,9 @@ export async function POST(req: NextRequest) {
     if (!name || typeof name !== "string" || name.trim().length < 2) {
       return NextResponse.json({ error: "Restaurant name must be at least 2 characters" }, { status: 400 });
     }
+    if (name.trim().length > 50) {
+      return NextResponse.json({ error: "Restaurant name must be 50 characters or less" }, { status: 400 });
+    }
 
     // Generate slug from name
     let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
