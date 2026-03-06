@@ -284,8 +284,13 @@ export async function createVapiAssistant(
     }
 
     const errText = await res.text();
-    // If it's a voice-specific error, try the next voice
-    if (errText.includes("Voice") || errText.includes("voice") || errText.includes("11labs")) {
+    const isVoiceError =
+      errText.includes("Couldn't Find") ||          // "Couldn't Find 11labs Voice"
+      errText.includes("voice exists") ||            // "check the voice exists"
+      errText.includes("11labs Voice") ||             // direct 11labs mention
+      errText.includes("Voice not found");           // generic voice not found
+    
+    if (isVoiceError) {
       console.warn(`Voice ${voice.provider}/${voice.voiceId} failed, trying next fallback:`, errText);
       lastError = errText;
       continue;
