@@ -57,8 +57,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
 
     const { phoneNumber, phoneNumberSid } = await req.json();
 
-    // Connect in Vapi
-    await connectPhoneToVapi(phoneNumberSid, restaurant.vapi_assistant_id);
+    // Connect in Vapi (pass E.164 number, not SID)
+    await connectPhoneToVapi(phoneNumber, restaurant.vapi_assistant_id);
 
     // Save to DB
     await initDB();

@@ -27,9 +27,11 @@ export async function listTwilioNumbers(): Promise<TwilioNumber[]> {
   }));
 }
 
-/** Import a phone number into Vapi and connect it to an assistant */
+/** Import a phone number into Vapi and connect it to an assistant.
+ *  `phoneNumber` must be E.164 format (e.g. +18482786810).
+ *  `phoneNumberSid` is the Twilio SID (kept for legacy lookup). */
 export async function connectPhoneToVapi(
-  phoneNumberSid: string,
+  phoneNumber: string,
   vapiAssistantId: string
 ): Promise<string> {
   // First check if this number is already imported in Vapi
@@ -39,7 +41,8 @@ export async function connectPhoneToVapi(
 
   if (listRes.ok) {
     const numbers = await listRes.json();
-    const existing = numbers.find?.((n: { twilioPhoneNumberSid?: string }) => n.twilioPhoneNumberSid === phoneNumberSid);
+    // Match by E.164 number (Vapi stores it in the `number` field)
+    const existing = numbers.find?.((n: { number?: string }) => n.number === phoneNumber);
     if (existing) {
       // Update the assistant on the existing Vapi phone number
       const updateRes = await fetch(`https://api.vapi.ai/phone-number/${existing.id}`, {
@@ -58,7 +61,7 @@ export async function connectPhoneToVapi(
     }
   }
 
-  // Import the Twilio number into Vapi
+  // Import the Twilio number into Vapi (new API format as of April 2025)
   const importRes = await fetch("https://api.vapi.ai/phone-number", {
     method: "POST",
     headers: {
@@ -67,9 +70,9 @@ export async function connectPhoneToVapi(
     },
     body: JSON.stringify({
       provider: "twilio",
+      number: phoneNumber,
       twilioAccountSid: TWILIO_SID,
       twilioAuthToken: TWILIO_TOKEN,
-      twilioPhoneNumber: phoneNumberSid,
       assistantId: vapiAssistantId,
     }),
   });
