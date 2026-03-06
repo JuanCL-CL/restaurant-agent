@@ -152,7 +152,7 @@ NextAuth REQUIRES the `AUTH_URL` env var on Vercel. Without it, NextAuth uses `V
 
 ### Vapi API Gotchas
 - When PATCHing an assistant, sending `model.messages` without `model.tools` **WIPES the tools**. Always include both fields together.
-- **11Labs voice deprecation (March 2026):** Legacy 11Labs voice IDs (e.g., `21m00Tcm4TlvDq8ikWAM`) can't be used for new assistant creation via Vapi — existing assistants still work. Switched to Vapi-native voices. Active voices: Elliot, Savannah, Rohan, Emma, Clara, Nico, Kai, Sagar, Godfrey, Neil. Default: **Kai** (friendly, relaxed, approachable).
+- **11Labs voice:** Default voice is `ZncGbt9ecxkwpmaX6V9z` (11Labs, eleven_turbo_v2_5). The old voice ID `21m00Tcm4TlvDq8ikWAM` was retired — don't use it. Vapi-native voices (Elliot, Kai, Clara, etc.) are available as fallback.
 - **Assistant name limit:** Vapi enforces 40 char max on assistant names. Format is `name.substring(0, 26) + " - Mesa AI"` (max 36 chars). Restaurant name itself is capped at 50 chars in onboarding (API + frontend).
 
 ## Telephony (Twilio)
