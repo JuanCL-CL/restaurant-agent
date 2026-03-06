@@ -84,7 +84,7 @@ export default function RestaurantSwitcher({ currentSlug }: { currentSlug: strin
           <Logo size={30} />
           <div>
             <h1 className="text-base sm:text-xl font-bold text-slate-900 flex items-center gap-2 truncate">
-              {current?.name || "TableCall"}
+              {current?.name || "Mesa"}
               <svg
                 className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
                 fill="none"

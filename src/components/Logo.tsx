@@ -10,22 +10,34 @@ export default function Logo({ size = 32, className = "" }: { size?: number; cla
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
-      {/* Table top */}
-      <rect x="8" y="32" width="36" height="5" rx="2.5" fill="#0f172a" />
-      {/* Left leg */}
-      <rect x="12" y="37" width="4" height="16" rx="2" fill="#0f172a" />
-      {/* Right leg */}
-      <rect x="36" y="37" width="4" height="16" rx="2" fill="#0f172a" />
+      {/* Rounded square background */}
+      <rect x="4" y="4" width="56" height="56" rx="14" fill="#0f172a" />
 
-      {/* Speech bubble */}
-      <rect x="28" y="6" width="30" height="22" rx="6" fill="#10b981" />
-      {/* Bubble tail */}
-      <path d="M34 28 L30 34 L40 28" fill="#10b981" />
+      {/* Stylized "M" mark — clean, geometric */}
+      <path
+        d="M16 44V24l10 12 10-12v20"
+        stroke="#10b981"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
 
-      {/* Three dots in bubble */}
-      <circle cx="37" cy="17" r="2.5" fill="white" />
-      <circle cx="43" cy="17" r="2.5" fill="white" />
-      <circle cx="49" cy="17" r="2.5" fill="white" />
+      {/* Signal waves — representing AI/voice */}
+      <path
+        d="M44 22c2.5-2.5 2.5-6.5 0-9"
+        stroke="#10b981"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+      <path
+        d="M48 19c4-4 4-10.5 0-14.5"
+        stroke="#10b981"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.35"
+      />
     </svg>
   );
 }

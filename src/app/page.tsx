@@ -25,7 +25,7 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Logo size={32} />
-            <span className="text-xl font-bold text-slate-900">TableCall</span>
+            <span className="text-xl font-bold text-slate-900">Mesa</span>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login" className="px-4 py-2 text-slate-600 hover:text-slate-900 transition text-sm font-medium">
@@ -48,7 +48,7 @@ export default async function Home() {
           Never miss a<br />reservation again
         </h1>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-          TableCall is an AI receptionist that answers your restaurant&apos;s phone, takes reservations, and manages your seating — 24/7, no staff needed.
+          Mesa is an AI receptionist that answers your restaurant&apos;s phone, takes reservations, and manages your seating — 24/7, no staff needed.
         </p>
         <div className="flex items-center justify-center gap-4">
           <Link href="/login" className="px-8 py-4 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition text-lg font-semibold shadow-lg shadow-slate-900/10">
@@ -155,7 +155,7 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Logo size={24} />
-            <span className="font-bold text-slate-900">TableCall</span>
+            <span className="font-bold text-slate-900">Mesa</span>
             <span className="text-sm text-slate-400 ml-2">© 2026</span>
           </div>
           <div className="text-sm text-slate-400">AI-Powered Restaurant Reservations</div>

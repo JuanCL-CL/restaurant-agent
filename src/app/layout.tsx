@@ -8,7 +8,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "TableCall — AI-Powered Restaurant Reservations",
+  title: "Mesa — AI-Powered Restaurant Reservations",
   description: "Set up an AI phone agent for your restaurant in minutes. Handles reservations, answers questions, and never misses a call.",
 };
 
