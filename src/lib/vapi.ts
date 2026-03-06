@@ -212,6 +212,14 @@ const TOOLS = [
   },
 ];
 
+// Voice fallback chain: ElevenLabs preferred → Vapi native as fallback
+const VOICE_OPTIONS = [
+  { provider: "11labs", model: "eleven_turbo_v2_5", voiceId: "ZncGbt9ecxkwpmaX6V9z", stability: 0.5, similarityBoost: 0.75 },
+  { provider: "11labs", model: "eleven_turbo_v2_5", voiceId: "21m00Tcm4TlvDq8ikWAM", stability: 0.5, similarityBoost: 0.75 },
+  { provider: "vapi", voiceId: "Kai" },
+  { provider: "vapi", voiceId: "Clara" },
+] as const;
+
 export async function createVapiAssistant(
   ctx: RestaurantContext,
   slug: string,
@@ -219,7 +227,7 @@ export async function createVapiAssistant(
 ): Promise<CreateAssistantResult> {
   const webhookUrl = `${baseUrl}/api/vapi/${slug}`;
 
-  const body = {
+  const baseBody = {
     name: `${ctx.name.substring(0, 26)} - Mesa AI`,
     firstMessage: `Hi, thanks for calling ${ctx.name}! How can I help you today?`,
     endCallFunctionEnabled: false,
@@ -231,13 +239,6 @@ export async function createVapiAssistant(
       provider: "openai",
       messages: [{ role: "system", content: buildSystemPrompt(ctx) }],
       tools: TOOLS,
-    },
-    voice: {
-      provider: "11labs",
-      model: "eleven_turbo_v2_5",
-      voiceId: "ZncGbt9ecxkwpmaX6V9z",
-      stability: 0.5,
-      similarityBoost: 0.75,
     },
     transcriber: {
       provider: "deepgram",
@@ -264,22 +265,37 @@ export async function createVapiAssistant(
     serverMessages: ["end-of-call-report"],
   };
 
-  const res = await fetch(`${VAPI_BASE}/assistant`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${VAPI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  // Try each voice in the fallback chain
+  let lastError = "";
+  for (const voice of VOICE_OPTIONS) {
+    const body = { ...baseBody, voice };
+    const res = await fetch(`${VAPI_BASE}/assistant`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${VAPI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
-  if (!res.ok) {
+    if (res.ok) {
+      const data = await res.json();
+      return { id: data.id, name: data.name };
+    }
+
     const errText = await res.text();
+    // If it's a voice-specific error, try the next voice
+    if (errText.includes("Voice") || errText.includes("voice") || errText.includes("11labs")) {
+      console.warn(`Voice ${voice.provider}/${voice.voiceId} failed, trying next fallback:`, errText);
+      lastError = errText;
+      continue;
+    }
+
+    // Non-voice error (e.g. name too long, auth issue) — don't retry
     throw new Error(`Vapi assistant creation failed: ${res.status} ${errText}`);
   }
 
-  const data = await res.json();
-  return { id: data.id, name: data.name };
+  throw new Error(`All voice options exhausted. Last error: ${lastError}`);
 }
 
 export async function updateVapiAssistant(
