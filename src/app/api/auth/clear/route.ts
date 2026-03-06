@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const res = NextResponse.redirect(new URL("/login", process.env.AUTH_URL || "https://restaurant-agent-red.vercel.app"));
+  const res = NextResponse.redirect(new URL("/login", process.env.AUTH_URL || "https://www.mesacall.com"));
   
   // Nuke all auth cookies
   const cookieNames = [

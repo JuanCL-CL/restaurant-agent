@@ -194,14 +194,14 @@ Pointer Events + `setPointerCapture` are **unreliable on mobile Safari/Chrome**.
 | `GOOGLE_CLIENT_SECRET` | Google Cloud project |
 | `AUTH_SECRET` | NextAuth encryption |
 | `AUTH_TRUST_HOST` | NextAuth (set to `true`) |
-| `AUTH_URL` | **Critical** — must be `https://restaurant-agent-red.vercel.app` |
+| `AUTH_URL` | **Critical** — must be `https://www.mesacall.com` |
 | `VAPI_API_KEY` | Vapi voice AI |
 | `TWILIO_ACCOUNT_SID` | Twilio telephony |
 | `TWILIO_AUTH_TOKEN` | Twilio telephony |
 | `POSTGRES_URL` (+ variants) | Neon DB via Vercel integration |
 
 Google Cloud project: "TableCall"
-OAuth callback: `https://restaurant-agent-red.vercel.app/api/auth/callback/google`
+OAuth callback: `https://www.mesacall.com/api/auth/callback/google` (also keep old Vercel URL as fallback)
 
 ## Current State (as of 2026-03-06)
 

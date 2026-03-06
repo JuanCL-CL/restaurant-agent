@@ -11,7 +11,7 @@ async function syncVapiAgent(restaurant: Restaurant) {
   try {
     const settings = await getSettings(restaurant.id);
     const sections = await getSections(restaurant.id);
-    const baseUrl = process.env.AUTH_URL || "https://restaurant-agent-red.vercel.app";
+    const baseUrl = process.env.AUTH_URL || "https://www.mesacall.com";
     await updateVapiAssistant(
       restaurant.vapi_assistant_id,
       {
