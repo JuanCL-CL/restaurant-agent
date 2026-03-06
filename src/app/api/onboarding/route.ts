@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     let vapiError: string | null = null;
     try {
       const baseUrl = process.env.AUTH_URL || "https://www.mesacall.com";
-      console.log("[onboarding] Creating Vapi agent for:", restaurant.id, "baseUrl:", baseUrl);
+      console.log("[onboarding] Creating Vapi agent for:", restaurant.id, "baseUrl:", baseUrl, "VAPI_KEY_SET:", !!process.env.VAPI_API_KEY);
       const settings = await getSettings(restaurant.id);
       const sections = await getSections(restaurant.id);
       console.log("[onboarding] Settings:", settings?.name, "Sections:", sections?.length);
