@@ -220,7 +220,7 @@ export async function createVapiAssistant(
   const webhookUrl = `${baseUrl}/api/vapi/${slug}`;
 
   const body = {
-    name: `${ctx.name} - TableCall Agent`,
+    name: `${ctx.name.substring(0, 26)} - Mesa AI`,
     firstMessage: `Hi, thanks for calling ${ctx.name}! How can I help you today?`,
     endCallFunctionEnabled: false,
     endCallMessage: "Thank you for calling! We look forward to seeing you. Have a great day!",
@@ -288,7 +288,7 @@ export async function updateVapiAssistant(
   const webhookUrl = `${baseUrl}/api/vapi/${slug}`;
 
   const body = {
-    name: `${ctx.name} - TableCall Agent`,
+    name: `${ctx.name.substring(0, 26)} - Mesa AI`,
     firstMessage: `Hi, thanks for calling ${ctx.name}! How can I help you today?`,
     model: {
       model: "gpt-4o-mini",
