@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSettings, updateSettings, getSections, createSection, updateSection, deleteSection, getTables, createTable, updateTable, deleteTable, isRestaurantOwner } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
 import { auth } from "@/lib/auth";
+import { updateVapiAssistant } from "@/lib/vapi";
+import type { Restaurant } from "@/lib/db";
+
+/** Sync Vapi assistant prompt with latest restaurant settings (non-fatal) */
+async function syncVapiAgent(restaurant: Restaurant) {
+  if (!restaurant.vapi_assistant_id) return;
+  try {
+    const settings = await getSettings(restaurant.id);
+    const sections = await getSections(restaurant.id);
+    const baseUrl = process.env.AUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://restaurant-agent-red.vercel.app");
+    await updateVapiAssistant(
+      restaurant.vapi_assistant_id,
+      {
+        name: settings.name || restaurant.name,
+        phone: settings.phone,
+        address: settings.address,
+        openTime: settings.open_time,
+        closeTime: settings.close_time,
+        lastSeating: settings.last_seating,
+        reservationDuration: settings.reservation_duration_minutes,
+        sections: sections.map((s) => s.name),
+      },
+      restaurant.slug,
+      baseUrl
+    );
+  } catch (err) {
+    console.error("Failed to sync Vapi assistant (non-fatal):", err);
+  }
+}
 
 async function checkOwner(restaurantId: string): Promise<NextResponse | null> {
   const session = await auth();
@@ -59,6 +88,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     switch (action) {
       case "update_settings": {
         const result = await updateSettings(restaurant.id, body.settings);
+        // Sync the AI agent prompt with the new settings
+        await syncVapiAgent(restaurant);
         return NextResponse.json({ settings: result });
       }
       case "create_section": {
