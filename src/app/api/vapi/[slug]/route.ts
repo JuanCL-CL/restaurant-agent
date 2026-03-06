@@ -45,8 +45,9 @@ function resolveRelativeDate(description: string): { date: string; spoken: strin
     }
     if (targetDay !== null) {
       let daysAhead = targetDay - dayOfWeek;
+      // "next Tuesday" or just "Tuesday" both mean the first upcoming occurrence
+      // Only skip to the week after if today IS that day (e.g. "next Tuesday" on a Tuesday = 7 days)
       if (daysAhead <= 0) daysAhead += 7;
-      if (isNext) { daysAhead = targetDay - dayOfWeek; if (daysAhead <= 0) daysAhead += 7; if (daysAhead > 0 && daysAhead < 7) daysAhead += 7; }
       target = new Date(today); target.setDate(target.getDate() + daysAhead);
     }
   }
