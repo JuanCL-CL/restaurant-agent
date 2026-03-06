@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRestaurant, getRestaurantsByOwner, getRestaurantBySlug, setRestaurantVapiAssistant, initDB } from "@/lib/db";
+import { createRestaurant, getRestaurantsByOwner, getRestaurantBySlug, setRestaurantVapiAssistant, getSettings, getSections, initDB } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { createVapiAssistant } from "@/lib/vapi";
+import { createVapiAssistant, RestaurantContext } from "@/lib/vapi";
 
 export async function GET() {
   try {
@@ -45,10 +45,22 @@ export async function POST(req: NextRequest) {
 
     const restaurant = await createRestaurant(slug, name.trim(), session.user.email);
 
-    // Create a Vapi AI assistant for this restaurant
+    // Create a Vapi AI assistant with full restaurant context
     try {
       const baseUrl = process.env.AUTH_URL || "https://www.mesacall.com";
-      const assistant = await createVapiAssistant({ name: name.trim() }, slug, baseUrl);
+      const settings = await getSettings(restaurant.id);
+      const sections = await getSections(restaurant.id);
+      const ctx: RestaurantContext = {
+        name: settings.name,
+        phone: settings.phone || undefined,
+        address: settings.address || undefined,
+        openTime: settings.open_time,
+        closeTime: settings.close_time,
+        lastSeating: settings.last_seating || undefined,
+        reservationDuration: settings.reservation_duration_minutes,
+        sections: sections.map((s) => s.name),
+      };
+      const assistant = await createVapiAssistant(ctx, slug, baseUrl);
       await setRestaurantVapiAssistant(restaurant.id, assistant.id);
     } catch (err) {
       console.error("Failed to create Vapi assistant (restaurant still created):", err);
