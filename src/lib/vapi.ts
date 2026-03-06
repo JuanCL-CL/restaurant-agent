@@ -234,6 +234,18 @@ export async function createVapiAssistant(
       model: "nova-2",
       language: "en",
     },
+    startSpeakingPlan: {
+      smartEndpointingPlan: {
+        provider: "livekit",
+        waitFunction: "2000 / (1 + exp(-10 * (x - 0.5)))",
+      },
+      waitSeconds: 0.6,
+    },
+    stopSpeakingPlan: {
+      numWords: 0,
+      voiceSeconds: 0.2,
+      backoffSeconds: 1.0,
+    },
     serverUrl: webhookUrl,
     server: {
       url: webhookUrl,
@@ -276,6 +288,18 @@ export async function updateVapiAssistant(
       provider: "openai",
       messages: [{ role: "system", content: buildSystemPrompt(ctx) }],
       tools: TOOLS,
+    },
+    startSpeakingPlan: {
+      smartEndpointingPlan: {
+        provider: "livekit",
+        waitFunction: "2000 / (1 + exp(-10 * (x - 0.5)))",
+      },
+      waitSeconds: 0.6,
+    },
+    stopSpeakingPlan: {
+      numWords: 0,
+      voiceSeconds: 0.2,
+      backoffSeconds: 1.0,
     },
     serverUrl: webhookUrl,
     server: { url: webhookUrl, timeoutSeconds: 20 },

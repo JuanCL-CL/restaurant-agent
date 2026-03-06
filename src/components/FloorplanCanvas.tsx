@@ -25,6 +25,9 @@ type Props = {
   tables: FloorplanTable[];
   reservationsByTableId?: Record<string, FloorplanReservation[]>;
   editable?: boolean;
+  selectable?: boolean;
+  selectedIds?: string[];
+  onSelect?: (tableId: string, table: FloorplanTable) => void;
   heightPx?: number;
   onChange?: (tables: FloorplanTable[]) => void;
 };
@@ -39,6 +42,16 @@ type DragState = {
   startW: number;
   startH: number;
 } | null;
+
+/** Abbreviate table names for compact display: "Table 1" → "T1", "Bar 2" → "B2", "Outdoor 3" → "O3" */
+function abbreviateName(name: string): string {
+  const match = name.match(/^([A-Za-z]+)\s*(\d+.*)$/);
+  if (!match) return name;
+  const word = match[1];
+  const num = match[2];
+  // Use first letter, uppercase
+  return `${word[0].toUpperCase()}${num}`;
+}
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -109,6 +122,9 @@ export default function FloorplanCanvas({
   tables,
   reservationsByTableId,
   editable = false,
+  selectable = false,
+  selectedIds = [],
+  onSelect,
   heightPx = 420,
   onChange,
 }: Props) {
@@ -231,7 +247,8 @@ export default function FloorplanCanvas({
       ref={canvasRef}
       className="relative w-full rounded-2xl border border-slate-200/60 overflow-hidden"
       style={{
-        height: `${heightPx}px`,
+        aspectRatio: "3 / 2",
+        maxHeight: `${heightPx}px`,
         background: editable
           ? "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)"
           : "linear-gradient(135deg, #fafbfc 0%, #f3f5f8 100%)",
@@ -263,16 +280,18 @@ export default function FloorplanCanvas({
         const booked = (reservationsByTableId?.[t.id]?.length || 0) > 0;
         const tableReservations = (reservationsByTableId?.[t.id] || []).slice().sort((a, b) => a.time.localeCompare(b.time));
         const isOpen = !booked;
-        const isSelected = selectedTableId === t.id;
+        const isSelected = selectable ? selectedIds.includes(t.id) : selectedTableId === t.id;
         const isBeingDragged = dragRef.current?.id === t.id;
 
         const borderColor = isSelected
-          ? "border-blue-400 ring-2 ring-blue-200/60"
+          ? "border-blue-500 ring-2 ring-blue-300/60"
           : isOpen
           ? "border-emerald-200/80"
           : "border-amber-200/80";
 
-        const bgColor = isOpen
+        const bgColor = isSelected
+          ? "bg-gradient-to-br from-blue-50 to-blue-100/60"
+          : isOpen
           ? "bg-gradient-to-br from-emerald-50 to-emerald-100/60"
           : "bg-gradient-to-br from-amber-50 to-amber-100/60";
 
@@ -281,12 +300,16 @@ export default function FloorplanCanvas({
             key={t.id}
             className={`absolute rounded-xl border-2 select-none transition-shadow ${borderColor} ${bgColor} ${
               isBeingDragged ? "shadow-lg z-20" : "shadow-sm z-10"
-            } ${editable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer hover:shadow-md"}`}
+            } ${editable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer hover:shadow-md"}${
+              selectable ? " cursor-pointer hover:shadow-md" : ""
+            }`}
             style={{
               left: `${t.x}%`,
               top: `${t.y}%`,
               width: `${t.w}%`,
               height: `${t.h}%`,
+              minWidth: "48px",
+              minHeight: "36px",
               transition: isDragging ? "none" : "box-shadow 0.15s ease, border-color 0.15s ease",
               touchAction: "none",
             }}
@@ -294,41 +317,20 @@ export default function FloorplanCanvas({
             onTouchStart={(e) => editable && startDrag(t.id, "drag", e)}
             onClick={(e) => {
               e.stopPropagation();
-              if (editable) {
+              if (selectable && onSelect) {
+                onSelect(t.id, t);
+              } else if (editable) {
                 setSelectedTableId(t.id);
               } else {
                 setOpenTableId((prev) => (prev === t.id ? null : t.id));
               }
             }}
           >
-            {/* Chair dots (edit mode) */}
+            {/* Chair dots (edit mode only) */}
             {editable && <ChairDots capacity={t.capacity} isOpen={isOpen} />}
 
-            <div className="p-2 h-full flex flex-col justify-center items-center text-center relative pointer-events-none">
-              <div className="text-sm font-bold text-slate-800 truncate max-w-full leading-tight">{t.name}</div>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="text-[11px] text-slate-500">
-                  {t.capacity} {t.capacity === 1 ? "seat" : "seats"}
-                </span>
-              </div>
-
-              {/* Reservation count badge (view mode) */}
-              {!editable && booked && (
-                <div className="mt-1.5">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-200/70 text-amber-800">
-                    {tableReservations.length} booked
-                  </span>
-                </div>
-              )}
-
-              {/* Open badge (view mode) */}
-              {!editable && isOpen && (
-                <div className="mt-1.5">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-200/70 text-emerald-800">
-                    ✓ Open
-                  </span>
-                </div>
-              )}
+            <div className="p-1 h-full flex flex-col justify-center items-center text-center relative pointer-events-none overflow-visible">
+              <div className={`text-xs font-bold truncate max-w-full leading-tight ${isSelected && selectable ? "text-blue-800" : "text-slate-700"}`}>{abbreviateName(t.name)}</div>
             </div>
 
             {/* Resize handle (edit mode) */}

@@ -12,6 +12,7 @@ interface Reservation {
   date: string;
   time: string;
   table_id: string;
+  extra_table_ids?: string | null;
   section_name?: string;
   special_requests?: string;
   phone?: string;
@@ -116,8 +117,16 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
   const totalGuests = reservations.reduce((sum, r) => sum + r.party_size, 0);
 
   const reservationsByTableId = reservations.reduce((acc, r) => {
+    // Primary table
     if (!acc[r.table_id]) acc[r.table_id] = [];
     acc[r.table_id].push(r);
+    // Extra tables (combined reservations)
+    if (r.extra_table_ids) {
+      for (const extraId of r.extra_table_ids.split(",")) {
+        if (!acc[extraId]) acc[extraId] = [];
+        acc[extraId].push(r);
+      }
+    }
     return acc;
   }, {} as Record<string, Reservation[]>);
 
@@ -130,6 +139,55 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
   const [editForm, setEditForm] = useState({ guest_name: "", party_size: 0, time: "", special_requests: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+
+  // Add reservation state
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ guest_name: "", party_size: 2, date: "", time: "19:00", phone: "", special_requests: "", section: "" });
+  const [addSelectedTables, setAddSelectedTables] = useState<{ id: string; name: string; capacity: number }[]>([]);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  function openAdd() {
+    setAddForm({ guest_name: "", party_size: 2, date: selectedDate, time: "19:00", phone: "", special_requests: "", section: "" });
+    setAddSelectedTables([]);
+    setAddError(null);
+    setAddOpen(true);
+  }
+
+  async function submitAdd() {
+    if (!addForm.guest_name.trim() || !addForm.date || !addForm.time) {
+      setAddError("Please fill in name, date, and time.");
+      return;
+    }
+    setAddSaving(true);
+    setAddError(null);
+    try {
+      const res = await fetch(`/api/r/${slug}/reservations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guestName: addForm.guest_name.trim(),
+          partySize: addForm.party_size,
+          date: addForm.date,
+          time: addForm.time,
+          phone: addForm.phone.trim() || undefined,
+          specialRequests: addForm.special_requests.trim() || undefined,
+          section: addSelectedTables.length > 0 ? undefined : (sections.find((s) => s.id === addForm.section)?.name || undefined),
+          tableIds: addSelectedTables.length > 0 ? addSelectedTables.map(t => t.id) : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAddOpen(false);
+        fetchReservations();
+      } else {
+        setAddError(data.error || "Failed to create reservation");
+      }
+    } catch (err) {
+      setAddError("Network error: " + String(err));
+    }
+    setAddSaving(false);
+  }
 
   function openEdit(r: Reservation) {
     setEditForm({ guest_name: r.guest_name, party_size: r.party_size, time: r.time, special_requests: r.special_requests || "" });
@@ -264,6 +322,13 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
           })()}
         </div>
 
+        {/* Add Reservation Button */}
+        <div className="flex justify-end mb-3 sm:mb-4">
+          <button onClick={openAdd} className="px-4 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition text-sm font-semibold flex items-center gap-2 shadow-sm">
+            <span className="text-lg leading-none">+</span> Add Reservation
+          </button>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-8">
           {[{ icon: "📋", val: reservations.length, label: "Reservations", bg: "bg-blue-50" },
@@ -325,7 +390,7 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
                         </div>
                         <div className="flex items-center gap-2 flex-wrap mb-3">
                           {r.section_name && <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-500">📍 {r.section_name}</span>}
-                          <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-500">🪑 {tableNameById[r.table_id] || r.table_id}</span>
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-500">🪑 {[r.table_id, ...(r.extra_table_ids ? r.extra_table_ids.split(",") : [])].map(id => tableNameById[id] || id).join(" + ")}</span>
                           {r.special_requests && <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-600 border border-amber-200">🎂 {r.special_requests}</span>}
                         </div>
                         {r.status !== "cancelled" && (
@@ -394,6 +459,112 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
             <div className="flex justify-end gap-3">
               <button onClick={() => setCancelConfirm(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Keep It</button>
               <button onClick={() => cancelRes(cancelConfirm)} className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition">Cancel Reservation</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Reservation Modal */}
+      {addOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setAddOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Add Reservation</h2>
+            {addError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{addError}</div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Guest Name *</label>
+                <input type="text" value={addForm.guest_name} onChange={(e) => setAddForm({ ...addForm, guest_name: e.target.value })}
+                  placeholder="John Smith"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Party Size *</label>
+                <select value={addForm.party_size} onChange={(e) => setAddForm({ ...addForm, party_size: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                  {[1,2,3,4,5,6,7,8,9,10,12,15,20].map((n) => <option key={n} value={n}>{n} guest{n !== 1 ? "s" : ""}</option>)}
+                </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-slate-600">Table</label>
+                  {addSelectedTables.length > 0 && (
+                    <button onClick={() => setAddSelectedTables([])}
+                      className="text-xs text-slate-400 hover:text-slate-600">
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {addSelectedTables.length > 0 && (() => {
+                  const totalSeats = addSelectedTables.reduce((s, t) => s + t.capacity, 0);
+                  const fits = totalSeats >= addForm.party_size;
+                  return (
+                    <div className={`mb-2 px-3 py-2 rounded-xl text-sm border ${fits ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+                      {addSelectedTables.map(t => t.name).join(" + ")} · {totalSeats} seats {!fits && <span className="font-medium">(need {addForm.party_size})</span>}
+                    </div>
+                  );
+                })()}
+                {sections.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2">
+                    {sections.slice().sort((a, b) => a.display_order - b.display_order).map((s) => {
+                      const sectionId = addForm.section || sections[0]?.id;
+                      const active = sectionId === s.id;
+                      return (
+                        <button key={s.id} onClick={() => setAddForm({ ...addForm, section: s.id })}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition whitespace-nowrap ${active ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}>
+                          {s.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <FloorplanCanvas
+                  tables={tables.filter((t) => t.section_id === (addForm.section || sections[0]?.id))}
+                  reservationsByTableId={reservationsByTableId}
+                  selectable
+                  selectedIds={addSelectedTables.map(t => t.id)}
+                  onSelect={(id, t) => {
+                    setAddSelectedTables(prev => {
+                      const exists = prev.find(s => s.id === id);
+                      if (exists) return prev.filter(s => s.id !== id);
+                      return [...prev, { id, name: t.name, capacity: t.capacity }];
+                    });
+                  }}
+                  heightPx={280}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">Date *</label>
+                  <input type="date" value={addForm.date} onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">Time *</label>
+                  <input type="time" value={addForm.time} onChange={(e) => setAddForm({ ...addForm, time: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Phone</label>
+                <input type="tel" value={addForm.phone} onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Special Requests</label>
+                <input type="text" value={addForm.special_requests} onChange={(e) => setAddForm({ ...addForm, special_requests: e.target.value })}
+                  placeholder="Allergies, celebrations, seating preference..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setAddOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancel</button>
+              <button onClick={submitAdd} disabled={addSaving}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition disabled:opacity-50">
+                {addSaving ? "Booking…" : "Book Reservation"}
+              </button>
             </div>
           </div>
         </div>

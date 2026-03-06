@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getReservations, getTables, getSections, isRestaurantOwner, updateReservation, cancelReservation } from "@/lib/db";
+import { getReservations, getTables, getSections, isRestaurantOwner, updateReservation, cancelReservation, createReservation } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
 import { auth } from "@/lib/auth";
 
@@ -34,6 +34,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
       { error: "Failed to fetch reservations", reservations: [], tables: [], sections: [] },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const { slug } = await params;
+    const restaurant = await resolveTenant(slug);
+    if (!restaurant) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const session = await auth();
+    if (!session?.user?.email || !(await isRestaurantOwner(restaurant.id, session.user.email))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { guestName, partySize, date, time, specialRequests, phone, section, tableIds } = await req.json();
+    if (!guestName || !partySize || !date || !time) {
+      return NextResponse.json({ error: "Missing required fields: guestName, partySize, date, time" }, { status: 400 });
+    }
+
+    const result = await createReservation(restaurant.id, guestName, partySize, date, time, specialRequests, phone, section, tableIds);
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error, alternativeTimes: result.alternativeTimes }, { status: 409 });
+    }
+    return NextResponse.json({ reservation: result }, { status: 201 });
+  } catch (error) {
+    console.error("Reservation POST error:", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
 

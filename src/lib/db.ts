@@ -49,6 +49,7 @@ export interface Reservation {
   date: string;
   time: string;
   table_id: string;
+  extra_table_ids?: string | null;
   section_name?: string;
   special_requests?: string;
   phone?: string;
@@ -184,6 +185,7 @@ export async function initDB() {
   await safeAddCol("tables", "w", "DOUBLE PRECISION");
   await safeAddCol("tables", "h", "DOUBLE PRECISION");
   await safeAddCol("reservations", "restaurant_id", "TEXT");
+  await safeAddCol("reservations", "extra_table_ids", "TEXT");
   await safeAddCol("restaurant_settings", "restaurant_id", "TEXT");
 
   _initialized = true;
@@ -492,7 +494,10 @@ export async function checkAvailability(
   `;
 
   const availableTables = tables.filter((table) => {
-    const tableRes = dateReservations.filter((r) => r.table_id === table.id);
+    const tableRes = dateReservations.filter((r) => {
+      const reservedIds = [r.table_id, ...(r.extra_table_ids ? r.extra_table_ids.split(",") : [])];
+      return reservedIds.includes(table.id);
+    });
     return !tableRes.some((r) => timesOverlap(r.time, time, durationMins));
   });
 
@@ -511,7 +516,10 @@ export async function checkAvailability(
     if (altMins < openMins || altMins > lastMins) continue;
     const altTime = `${Math.floor(altMins / 60).toString().padStart(2, "0")}:${(altMins % 60).toString().padStart(2, "0")}`;
     const altAvailable = tables.some((table) => {
-      const tableRes = dateReservations.filter((r) => r.table_id === table.id);
+      const tableRes = dateReservations.filter((r) => {
+        const reservedIds = [r.table_id, ...(r.extra_table_ids ? r.extra_table_ids.split(",") : [])];
+        return reservedIds.includes(table.id);
+      });
       return !tableRes.some((r) => timesOverlap(r.time, altTime, durationMins));
     });
     if (altAvailable) alternativeTimes.push(altTime);
@@ -528,23 +536,75 @@ export async function createReservation(
   time: string,
   specialRequests?: string,
   phone?: string,
-  preferredSection?: string
+  preferredSection?: string,
+  preferredTableIds?: string[]
 ): Promise<Reservation | { error: string; alternativeTimes?: string[] }> {
-  const availability = await checkAvailability(restaurantId, date, time, partySize, preferredSection);
+  await initDB();
+  let primaryTableId: string;
+  let extraTableIds: string | null = null;
 
-  if (!availability.available) {
-    return {
-      error: `No tables available for a party of ${partySize} on ${date} at ${time}.`,
-      alternativeTimes: availability.alternativeTimes,
-    };
+  if (preferredTableIds && preferredTableIds.length > 0) {
+    // Manual table selection — verify all tables exist
+    const { rows: tableRows } = await sql`
+      SELECT t.*, s.name as section_name FROM tables t
+      JOIN sections s ON t.section_id = s.id
+      WHERE t.restaurant_id = ${restaurantId}
+    `;
+    const allTables = tableRows as Table[];
+    const selectedTables = preferredTableIds.map(id => allTables.find(t => t.id === id)).filter(Boolean) as Table[];
+
+    if (selectedTables.length !== preferredTableIds.length) {
+      return { error: "One or more selected tables not found." };
+    }
+
+    // Check combined capacity
+    const totalCapacity = selectedTables.reduce((sum, t) => sum + t.capacity, 0);
+    if (totalCapacity < partySize) {
+      const tableNames = selectedTables.map(t => t.name).join(" + ");
+      return { error: `${tableNames} only seat ${totalCapacity} combined — not enough for a party of ${partySize}.` };
+    }
+
+    // Check each table for time conflicts
+    const durationMins = await getReservationDuration(restaurantId);
+    const { rows: dateReservations } = await sql`
+      SELECT * FROM reservations
+      WHERE restaurant_id = ${restaurantId} AND date = ${date} AND status = 'confirmed'
+    `;
+
+    for (const t of selectedTables) {
+      // Check if this table is booked as a primary table OR as an extra table
+      const hasConflict = dateReservations.some((r) => {
+        const reservedTableIds = [r.table_id, ...(r.extra_table_ids ? r.extra_table_ids.split(",") : [])];
+        return reservedTableIds.includes(t.id) && timesOverlap(r.time, time, durationMins);
+      });
+      if (hasConflict) {
+        return { error: `${t.name} is already booked at this time.` };
+      }
+    }
+
+    primaryTableId = selectedTables[0].id;
+    if (selectedTables.length > 1) {
+      extraTableIds = selectedTables.slice(1).map(t => t.id).join(",");
+    }
+  } else {
+    // Auto-assign: check availability and pick the smallest fitting table
+    const availability = await checkAvailability(restaurantId, date, time, partySize, preferredSection);
+
+    if (!availability.available) {
+      return {
+        error: `No tables available for a party of ${partySize} on ${date} at ${time}.`,
+        alternativeTimes: availability.alternativeTimes,
+      };
+    }
+
+    primaryTableId = availability.tables.sort((a, b) => a.capacity - b.capacity)[0].id;
   }
 
-  const table = availability.tables.sort((a, b) => a.capacity - b.capacity)[0];
   const id = `r${Date.now()}`;
 
   await sql`
-    INSERT INTO reservations (id, restaurant_id, guest_name, party_size, date, time, table_id, special_requests, phone, status)
-    VALUES (${id}, ${restaurantId}, ${guestName}, ${partySize}, ${date}, ${time}, ${table.id}, ${specialRequests || null}, ${phone || null}, 'confirmed')
+    INSERT INTO reservations (id, restaurant_id, guest_name, party_size, date, time, table_id, extra_table_ids, special_requests, phone, status)
+    VALUES (${id}, ${restaurantId}, ${guestName}, ${partySize}, ${date}, ${time}, ${primaryTableId}, ${extraTableIds}, ${specialRequests || null}, ${phone || null}, 'confirmed')
   `;
 
   const { rows } = await sql`
