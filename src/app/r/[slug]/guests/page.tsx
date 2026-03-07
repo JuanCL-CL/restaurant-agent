@@ -63,8 +63,10 @@ export default function GuestsPage({ params }: { params: Promise<{ slug: string 
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
+  const [editingName, setEditingName] = useState(false);
   const [notesValue, setNotesValue] = useState("");
   const [tagsValue, setTagsValue] = useState("");
+  const [nameValue, setNameValue] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -88,8 +90,10 @@ export default function GuestsPage({ params }: { params: Promise<{ slug: string 
     setSelectedGuest(guest);
     setNotesValue(guest.notes || "");
     setTagsValue(guest.tags || "");
+    setNameValue(guest.name);
     setEditingNotes(false);
     setEditingTags(false);
+    setEditingName(false);
     setLoadingDetail(true);
     try {
       const res = await fetch(`/api/r/${slug}/guests?id=${guest.id}`);
@@ -99,6 +103,26 @@ export default function GuestsPage({ params }: { params: Promise<{ slug: string 
       setGuestReservations([]);
     }
     setLoadingDetail(false);
+  }
+
+  async function saveName() {
+    if (!selectedGuest || !nameValue.trim()) return;
+    try {
+      const res = await fetch(`/api/r/${slug}/guests`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestId: selectedGuest.id, name: nameValue.trim() }),
+      });
+      const data = await res.json();
+      if (data.guest) {
+        setSelectedGuest(data.guest);
+        setGuests(guests.map(g => g.id === data.guest.id ? data.guest : g));
+        showMessage("✅ Name updated");
+      }
+    } catch {
+      showMessage("❌ Failed to save");
+    }
+    setEditingName(false);
   }
 
   async function saveNotes() {
@@ -282,8 +306,26 @@ export default function GuestsPage({ params }: { params: Promise<{ slug: string 
                   }`}>
                     {selectedGuest.name.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">{selectedGuest.name}</h3>
+                  <div className="flex-1 min-w-0">
+                    {editingName ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={nameValue}
+                          onChange={(e) => setNameValue(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && saveName()}
+                          className="text-lg font-bold text-slate-900 bg-[#eef0f4] border border-slate-200 rounded-lg px-2 py-1 w-full"
+                          autoFocus
+                        />
+                        <button onClick={saveName} className="px-2 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold">Save</button>
+                        <button onClick={() => setEditingName(false)} className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-xs">✕</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-slate-900">{selectedGuest.name}</h3>
+                        <button onClick={() => { setNameValue(selectedGuest.name); setEditingName(true); }} className="text-xs text-blue-600 hover:text-blue-800">Edit</button>
+                      </div>
+                    )}
                     <p className="text-sm text-slate-500">{formatPhone(selectedGuest.phone)}</p>
                   </div>
                 </div>
