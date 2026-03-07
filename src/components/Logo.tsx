@@ -5,38 +5,28 @@ export default function Logo({ size = 32, className = "" }: { size?: number; cla
     <svg
       width={size}
       height={size}
-      viewBox="0 0 64 64"
+      viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
       {/* Rounded square background */}
-      <rect x="4" y="4" width="56" height="56" rx="14" fill="#0f172a" />
+      <rect x="3" y="3" width="94" height="94" rx="22" fill="#0f172a" />
 
-      {/* Stylized "M" mark — clean, geometric */}
+      {/* Plate rim — dinner plate circle */}
+      <circle cx="50" cy="50" r="32" stroke="#2dd4a8" strokeWidth="4" fill="none" />
+
+      {/* Inner plate glow */}
+      <circle cx="50" cy="50" r="26" fill="#2dd4a8" opacity="0.15" />
+
+      {/* M lettermark inside plate */}
       <path
-        d="M16 44V24l10 12 10-12v20"
-        stroke="#10b981"
+        d="M34 60V38l16 12 16-12v22"
+        stroke="#2dd4a8"
         strokeWidth="5"
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
-      />
-
-      {/* Signal waves — representing AI/voice */}
-      <path
-        d="M44 22c2.5-2.5 2.5-6.5 0-9"
-        stroke="#10b981"
-        strokeWidth="3"
-        strokeLinecap="round"
-        opacity="0.6"
-      />
-      <path
-        d="M48 19c4-4 4-10.5 0-14.5"
-        stroke="#10b981"
-        strokeWidth="3"
-        strokeLinecap="round"
-        opacity="0.35"
       />
     </svg>
   );
