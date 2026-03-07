@@ -57,6 +57,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
 
     const { phoneNumber, phoneNumberSid } = await req.json();
 
+    // If switching numbers, disconnect the old one first
+    if (restaurant.twilio_phone && restaurant.twilio_phone !== phoneNumber) {
+      await disconnectPhoneFromVapi(restaurant.twilio_phone);
+    }
+
     // Connect in Vapi (pass E.164 number, not SID)
     await connectPhoneToVapi(phoneNumber, restaurant.vapi_assistant_id);
 
