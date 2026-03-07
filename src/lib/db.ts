@@ -53,7 +53,21 @@ export interface Reservation {
   section_name?: string;
   special_requests?: string;
   phone?: string;
+  guest_id?: string | null;
   status: "confirmed" | "cancelled";
+  created_at: string;
+}
+
+export interface Guest {
+  id: string;
+  restaurant_id: string;
+  phone: string;
+  name: string;
+  email?: string | null;
+  visit_count: number;
+  last_visit_date?: string | null;
+  notes?: string | null;
+  tags?: string | null;
   created_at: string;
 }
 
@@ -189,6 +203,22 @@ export async function initDB() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS guests (
+      id TEXT PRIMARY KEY,
+      restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+      phone TEXT NOT NULL,
+      name TEXT NOT NULL,
+      email TEXT,
+      visit_count INTEGER DEFAULT 0,
+      last_visit_date TEXT,
+      notes TEXT,
+      tags TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(restaurant_id, phone)
+    )
+  `;
+
   // Add columns that might be missing on older DBs (idempotent)
   const safeAddCol = async (table: string, col: string, type: string) => {
     try {
@@ -222,6 +252,7 @@ export async function initDB() {
   await safeAddCol("tables", "h", "DOUBLE PRECISION");
   await safeAddCol("reservations", "restaurant_id", "TEXT");
   await safeAddCol("reservations", "extra_table_ids", "TEXT");
+  await safeAddCol("reservations", "guest_id", "TEXT");
   await safeAddCol("restaurant_settings", "restaurant_id", "TEXT");
 
   _initialized = true;
@@ -646,9 +677,17 @@ export async function createReservation(
 
   const id = `r-${crypto.randomUUID()}`;
 
+  // Auto-link guest profile if phone number is available
+  let guestId: string | null = null;
+  if (phone) {
+    const { guest } = await findOrCreateGuest(restaurantId, phone, guestName);
+    guestId = guest.id;
+    await recordGuestVisit(guest.id, date);
+  }
+
   await sql`
-    INSERT INTO reservations (id, restaurant_id, guest_name, party_size, date, time, table_id, extra_table_ids, special_requests, phone, status)
-    VALUES (${id}, ${restaurantId}, ${guestName}, ${partySize}, ${date}, ${time}, ${primaryTableId}, ${extraTableIds}, ${specialRequests || null}, ${phone || null}, 'confirmed')
+    INSERT INTO reservations (id, restaurant_id, guest_name, party_size, date, time, table_id, extra_table_ids, special_requests, phone, guest_id, status)
+    VALUES (${id}, ${restaurantId}, ${guestName}, ${partySize}, ${date}, ${time}, ${primaryTableId}, ${extraTableIds}, ${specialRequests || null}, ${phone || null}, ${guestId}, 'confirmed')
   `;
 
   const { rows } = await sql`
@@ -755,4 +794,122 @@ export async function getCalls(restaurantId: string, limit = 50, offset = 0): Pr
     LIMIT ${limit} OFFSET ${offset}
   `;
   return { calls: rows as Call[], total };
+}
+
+// ---- Guests ----
+
+/** Find or create a guest profile by phone number. Returns the guest and whether it was newly created. */
+export async function findOrCreateGuest(
+  restaurantId: string,
+  phone: string,
+  name: string
+): Promise<{ guest: Guest; created: boolean }> {
+  await initDB();
+
+  // Normalize phone — strip spaces, dashes, parens
+  const normalizedPhone = phone.replace(/[\s\-()]/g, "");
+
+  // Try to find existing guest
+  const { rows: existing } = await sql`
+    SELECT * FROM guests WHERE restaurant_id = ${restaurantId} AND phone = ${normalizedPhone}
+  `;
+
+  if (existing.length > 0) {
+    const guest = existing[0] as Guest;
+    // Update name if the new one is longer/more complete (e.g. "John" → "John Smith")
+    if (name.length > guest.name.length) {
+      await sql`UPDATE guests SET name = ${name} WHERE id = ${guest.id}`;
+      guest.name = name;
+    }
+    return { guest, created: false };
+  }
+
+  // Create new guest
+  const id = `g-${crypto.randomUUID()}`;
+  await sql`
+    INSERT INTO guests (id, restaurant_id, phone, name, visit_count, last_visit_date)
+    VALUES (${id}, ${restaurantId}, ${normalizedPhone}, ${name}, 0, null)
+  `;
+  const { rows } = await sql`SELECT * FROM guests WHERE id = ${id}`;
+  return { guest: rows[0] as Guest, created: true };
+}
+
+/** Update guest stats after a reservation is made */
+export async function recordGuestVisit(guestId: string, date: string): Promise<void> {
+  await sql`
+    UPDATE guests
+    SET visit_count = visit_count + 1,
+        last_visit_date = CASE WHEN last_visit_date IS NULL OR last_visit_date < ${date} THEN ${date} ELSE last_visit_date END
+    WHERE id = ${guestId}
+  `;
+}
+
+/** Get a guest by phone number for a restaurant */
+export async function getGuestByPhone(restaurantId: string, phone: string): Promise<Guest | null> {
+  await initDB();
+  const normalizedPhone = phone.replace(/[\s\-()]/g, "");
+  const { rows } = await sql`
+    SELECT * FROM guests WHERE restaurant_id = ${restaurantId} AND phone = ${normalizedPhone}
+  `;
+  return (rows[0] as Guest) ?? null;
+}
+
+/** Get a guest by ID */
+export async function getGuestById(guestId: string): Promise<Guest | null> {
+  await initDB();
+  const { rows } = await sql`SELECT * FROM guests WHERE id = ${guestId}`;
+  return (rows[0] as Guest) ?? null;
+}
+
+/** List all guests for a restaurant */
+export async function getGuests(
+  restaurantId: string,
+  opts?: { limit?: number; offset?: number; sort?: "visits" | "recent" | "name" }
+): Promise<{ guests: Guest[]; total: number }> {
+  await initDB();
+  const { rows: countRows } = await sql`SELECT COUNT(*) as total FROM guests WHERE restaurant_id = ${restaurantId}`;
+  const total = parseInt(countRows[0].total);
+
+  const limit = opts?.limit ?? 50;
+  const offset = opts?.offset ?? 0;
+  const sort = opts?.sort ?? "recent";
+
+  let orderBy = "last_visit_date DESC NULLS LAST";
+  if (sort === "visits") orderBy = "visit_count DESC";
+  if (sort === "name") orderBy = "name ASC";
+
+  // Can't parameterize ORDER BY, so we use the validated string directly
+  const { rows } = await sql.query(
+    `SELECT * FROM guests WHERE restaurant_id = $1 ORDER BY ${orderBy} LIMIT $2 OFFSET $3`,
+    [restaurantId, limit, offset]
+  );
+  return { guests: rows as Guest[], total };
+}
+
+/** Update guest notes/tags */
+export async function updateGuest(
+  guestId: string,
+  updates: { name?: string; email?: string; notes?: string; tags?: string }
+): Promise<Guest> {
+  await initDB();
+  if (updates.name !== undefined) await sql`UPDATE guests SET name = ${updates.name} WHERE id = ${guestId}`;
+  if (updates.email !== undefined) await sql`UPDATE guests SET email = ${updates.email} WHERE id = ${guestId}`;
+  if (updates.notes !== undefined) await sql`UPDATE guests SET notes = ${updates.notes} WHERE id = ${guestId}`;
+  if (updates.tags !== undefined) await sql`UPDATE guests SET tags = ${updates.tags} WHERE id = ${guestId}`;
+  const { rows } = await sql`SELECT * FROM guests WHERE id = ${guestId}`;
+  return rows[0] as Guest;
+}
+
+/** Get all reservations for a specific guest */
+export async function getGuestReservations(guestId: string): Promise<Reservation[]> {
+  await initDB();
+  const { rows } = await sql`
+    SELECT r.*, s.name as section_name
+    FROM reservations r
+    JOIN tables t ON r.table_id = t.id
+    JOIN sections s ON t.section_id = s.id
+    WHERE r.guest_id = ${guestId}
+    ORDER BY r.date DESC, r.time DESC
+  `;
+  return rows as Reservation[];
 }

@@ -248,6 +248,9 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
             <a href={`/r/${slug}/calls`} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition text-sm font-medium">
               📞 <span className="hidden sm:inline">Calls</span>
             </a>
+            <a href={`/r/${slug}/guests`} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition text-sm font-medium">
+              👥 <span className="hidden sm:inline">Guests</span>
+            </a>
             <a href={`/r/${slug}/settings`} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition text-sm font-medium">
               ⚙️ <span className="hidden sm:inline">Settings</span>
             </a>

@@ -6,6 +6,7 @@ import {
   cancelReservation,
   updateReservation,
   saveCall,
+  getGuestByPhone,
   initDB,
 } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
@@ -91,6 +92,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     const callerNumber = body.call?.customer?.number || message?.call?.customer?.number || message?.customer?.number || null;
 
     if (message?.type === "tool-calls") {
+      // Look up returning guest by caller phone
+      let guestContext: string | null = null;
+      if (callerNumber) {
+        const guest = await getGuestByPhone(restaurantId, callerNumber);
+        if (guest && guest.visit_count > 0) {
+          const parts = [`This is a returning guest: ${guest.name} (${guest.visit_count} previous visit${guest.visit_count > 1 ? "s" : ""})`];
+          if (guest.last_visit_date) parts.push(`last visited ${guest.last_visit_date}`);
+          if (guest.notes) parts.push(`Notes: ${guest.notes}`);
+          if (guest.tags) parts.push(`Tags: ${guest.tags}`);
+          guestContext = parts.join(". ") + ". Greet them warmly by name and reference their history if appropriate. Use any notes to personalize service (e.g. seat preferences, allergies).";
+        }
+      }
+
       const results = [];
       for (const toolCall of message.toolCallList || []) {
         const functionInfo = toolCall.function || toolCall;
@@ -117,11 +131,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
               if (availability.sectionFallback && section) {
                 result = { available: true, sectionFallback: true, message: `We don't have "${section}" seating available for ${party_size} guests, but we do have availability in: ${secs.join(", ")}. Ask if one of those would work instead.`, sections: secs };
               } else {
-                result = { available: true, message: `Great news! We have a table for ${party_size} at ${spokenTime}. Available areas: ${secs.join(", ")}.`, sections: secs };
+                let msg = `Great news! We have a table for ${party_size} at ${spokenTime}. Available areas: ${secs.join(", ")}.`;
+                if (guestContext) { msg = guestContext + " " + msg; guestContext = null; }
+                result = { available: true, message: msg, sections: secs };
               }
             } else {
               const altMsg = spokenAlts.length ? `We do have openings at: ${spokenAlts.join(", ")}. Would any of those work?` : "Unfortunately we don't have any openings near that time on that date.";
-              result = { available: false, message: `Sorry, we're fully booked for ${party_size} at ${spokenTime} on that date.`, alternativeTimesSpoken: spokenAlts, suggestion: altMsg };
+              let msg = `Sorry, we're fully booked for ${party_size} at ${spokenTime} on that date.`;
+              if (guestContext) { msg = guestContext + " " + msg; guestContext = null; }
+              result = { available: false, message: msg, alternativeTimesSpoken: spokenAlts, suggestion: altMsg };
             }
             break;
           }
