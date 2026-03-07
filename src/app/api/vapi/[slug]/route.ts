@@ -86,6 +86,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     const body = await req.json();
     const { message } = body;
 
+    // Vapi puts customer info in multiple possible locations depending on webhook type
+    const callerNumber = body.call?.customer?.number || message?.call?.customer?.number || message?.customer?.number || null;
+
     if (message?.type === "tool-calls") {
       const results = [];
       for (const toolCall of message.toolCallList || []) {
@@ -124,8 +127,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
           case "make_reservation": {
             const { guest_name, party_size, date, time, special_requests, phone, section } = args;
             // Auto-capture caller's phone number if AI didn't collect one explicitly
-            const callerPhone = body.call?.customer?.number || null;
-            const reservationPhone = phone || callerPhone || undefined;
+            const reservationPhone = phone || callerNumber || undefined;
             const reservation = await createReservation(restaurantId, guest_name, party_size, date, time, special_requests, reservationPhone, section);
             if ("error" in reservation) {
               result = { success: false, message: reservation.error, alternativeTimes: reservation.alternativeTimes };
@@ -208,7 +210,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
 
         await saveCall(restaurantId, callId, {
           callType: body.call?.type || message.type || null,
-          callerPhone: body.call?.customer?.number || null,
+          callerPhone: callerNumber,
           startedAt,
           endedAt,
           durationSeconds,
