@@ -83,12 +83,17 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
   async function saveSettings() {
     setSaving(true);
     try {
-      await fetch(`/api/r/${slug}/settings`, {
+      const res = await fetch(`/api/r/${slug}/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update_settings", settings }),
       });
+      const data = await res.json();
       showMessage("✅ Settings saved!");
+      // If slug changed (name was updated), redirect to new URL
+      if (data.slug && data.slug !== slug) {
+        window.location.href = `/r/${data.slug}/settings`;
+      }
     } catch {
       showMessage("❌ Failed to save");
     }

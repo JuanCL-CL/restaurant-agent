@@ -92,11 +92,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
         // Sync the restaurant name in the restaurants table too (for switcher/nav)
         if (body.settings?.name) {
           await initDB();
-          await sql`UPDATE restaurants SET name = ${body.settings.name} WHERE id = ${restaurant.id}`;
+          // Generate new slug from the updated name
+          const newSlug = body.settings.name
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9\s-]/g, "")   // strip special chars
+            .replace(/\s+/g, "-")             // spaces to hyphens
+            .replace(/-+/g, "-")              // collapse multiple hyphens
+            .replace(/^-|-$/g, "");           // trim leading/trailing hyphens
+          if (newSlug && newSlug !== restaurant.slug) {
+            // Check if slug is already taken by another restaurant
+            const { rows: existing } = await sql`SELECT id FROM restaurants WHERE slug = ${newSlug} AND id != ${restaurant.id}`;
+            if (existing.length === 0) {
+              await sql`UPDATE restaurants SET name = ${body.settings.name}, slug = ${newSlug} WHERE id = ${restaurant.id}`;
+            } else {
+              // Slug collision — update name only, keep old slug
+              await sql`UPDATE restaurants SET name = ${body.settings.name} WHERE id = ${restaurant.id}`;
+            }
+          } else {
+            await sql`UPDATE restaurants SET name = ${body.settings.name} WHERE id = ${restaurant.id}`;
+          }
         }
         // Sync the AI agent prompt with the new settings
         await syncVapiAgent(restaurant);
-        return NextResponse.json({ settings: result });
+        // Return updated slug so frontend can redirect if it changed
+        const { rows: updated } = await sql`SELECT slug FROM restaurants WHERE id = ${restaurant.id}`;
+        const newSlugResult = updated[0]?.slug || restaurant.slug;
+        return NextResponse.json({ settings: result, slug: newSlugResult });
       }
       case "create_section": {
         const result = await createSection(restaurant.id, body.name, body.description);
