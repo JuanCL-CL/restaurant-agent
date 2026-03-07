@@ -43,14 +43,28 @@ type DragState = {
   startH: number;
 } | null;
 
-/** Abbreviate table names for compact display: "Table 1" → "T1", "Bar 2" → "B2", "Outdoor 3" → "O3" */
+/** Abbreviate table names for compact display:
+ *  "Table 1" → "T1", "Bar 2" → "B2", "High Top 4" → "HT4",
+ *  "VIP Room 1" → "VR1", "The Terrace 3" → "TT3", "A1" → "A1" */
 function abbreviateName(name: string): string {
-  const match = name.match(/^([A-Za-z]+)\s*(\d+.*)$/);
-  if (!match) return name;
-  const word = match[1];
-  const num = match[2];
-  // Use first letter, uppercase
-  return `${word[0].toUpperCase()}${num}`;
+  const trimmed = name.trim();
+  if (!trimmed) return name;
+
+  // Split into word parts and trailing number part
+  const match = trimmed.match(/^(.+?)\s*(\d+\w*)$/);
+  if (!match) {
+    // No trailing number — just take first letters of each word, max 3 chars
+    const initials = trimmed.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("");
+    return initials.slice(0, 3) || trimmed;
+  }
+
+  const wordPart = match[1];
+  const numPart = match[2];
+
+  // Take first letter of each word in the word part
+  const initials = wordPart.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("");
+
+  return `${initials}${numPart}`;
 }
 
 function clamp(n: number, min: number, max: number) {
