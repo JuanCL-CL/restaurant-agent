@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isRestaurantOwner, initDB } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
 import { auth } from "@/lib/auth";
-import { sql } from "@vercel/postgres";
+import { sql } from "@/lib/sql";
 
 const VAPI_API_KEY = process.env.VAPI_API_KEY || "";
 

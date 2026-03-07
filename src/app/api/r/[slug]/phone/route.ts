@@ -3,7 +3,7 @@ import { isRestaurantOwner, initDB } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
 import { auth } from "@/lib/auth";
 import { listTwilioNumbers, connectPhoneToVapi, disconnectPhoneFromVapi } from "@/lib/twilio";
-import { sql } from "@vercel/postgres";
+import { sql } from "@/lib/sql";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {

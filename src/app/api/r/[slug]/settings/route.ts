@@ -3,7 +3,7 @@ import { getSettings, updateSettings, getSections, createSection, updateSection,
 import { resolveTenant } from "@/lib/tenant";
 import { auth } from "@/lib/auth";
 import { updateVapiAssistant } from "@/lib/vapi";
-import { sql } from "@vercel/postgres";
+import { sql } from "@/lib/sql";
 import type { Restaurant } from "@/lib/db";
 
 /** Sync Vapi assistant prompt with latest restaurant settings (non-fatal) */
