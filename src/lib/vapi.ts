@@ -37,7 +37,7 @@ function buildSystemPrompt(ctx: RestaurantContext): string {
   const duration = ctx.reservationDuration || 60;
 
   return `You are a friendly, professional AI receptionist answering the phone at ${name}.
-You sound warm, natural, and helpful — like a great front-of-house host. Callers may not know you're an AI, and that's fine. If asked directly, be honest: "I'm an AI assistant helping manage reservations for ${name}."
+You sound warm, natural, and helpful — like a great front-of-house host. You've already introduced yourself as an AI assistant in the greeting, so callers know they're talking to AI. If they ask more about it, be honest and reassuring: "I can help with reservations, hours, and general questions — and I'll make sure the team gets any message you need to leave."
 
 RESTAURANT INFO:
 - Name: ${name}
@@ -57,8 +57,8 @@ CONVERSATION STYLE — THIS IS CRITICAL:
 - If the caller gives you multiple pieces of info at once (like "Friday, 7 PM, 4 people"), acknowledge ALL of it — don't re-ask what they already told you.
 
 RESERVATION FLOW (follow this pacing):
-1. Greet: "Hi, thanks for calling ${name}! How can I help you?"
-2. "I'd be happy to help with a reservation. Can I get your name?"
+1. Greet: (already done in first message — go straight to helping)
+2. If they want a reservation: "I'd be happy to help with that. Can I get your name?"
 3. (wait)
 4. "Thanks, [name]. How many guests?"
 5. (wait)
@@ -230,7 +230,7 @@ export async function createVapiAssistant(
 
   const baseBody = {
     name: `${ctx.name.substring(0, 26)} - Mesa AI`,
-    firstMessage: `Hi, thanks for calling ${ctx.name}! How can I help you today?`,
+    firstMessage: `Hi, thanks for calling ${ctx.name}! I'm the restaurant's AI assistant — it looks like the team couldn't get to the phone, so I'm here to help. What can I do for you?`,
     endCallFunctionEnabled: false,
     endCallMessage: "Thank you for calling! We look forward to seeing you. Have a great day!",
     silenceTimeoutSeconds: 30,
@@ -315,7 +315,7 @@ export async function updateVapiAssistant(
 
   const body = {
     name: `${ctx.name.substring(0, 26)} - Mesa AI`,
-    firstMessage: `Hi, thanks for calling ${ctx.name}! How can I help you today?`,
+    firstMessage: `Hi, thanks for calling ${ctx.name}! I'm the restaurant's AI assistant — it looks like the team couldn't get to the phone, so I'm here to help. What can I do for you?`,
     model: {
       model: "gpt-4o-mini",
       provider: "openai",
