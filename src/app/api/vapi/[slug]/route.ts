@@ -195,9 +195,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
           durationSeconds = Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000);
         }
 
-        // Extract transcript from messages array
+        // Extract transcript from messages array (exclude system prompts)
         const transcript = (message.messages || body.call?.messages || [])
-          .filter((m: { role?: string; message?: string }) => m.role && m.message)
+          .filter((m: { role?: string; message?: string }) => m.role && m.message && m.role !== 'system')
           .map((m: { role: string; message: string }) => ({
             role: m.role === 'bot' || m.role === 'assistant' ? 'assistant' : m.role === 'user' ? 'caller' : m.role,
             text: m.message,
