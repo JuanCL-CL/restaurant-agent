@@ -27,8 +27,10 @@ src/
       r/[slug]/book/route.ts          — GET: public restaurant info + time slots, POST: public reservation creation
       r/[slug]/settings/route.ts      — GET/PUT: restaurant settings (auto-syncs Vapi agent)
       r/[slug]/phone/route.ts         — GET: available numbers, POST: assign Twilio number
+      r/[slug]/guests/route.ts        — GET: guest list/detail, PATCH: update notes/tags
       r/[slug]/delete/route.ts        — DELETE: cascade-delete restaurant + Vapi assistant
-      vapi/[slug]/route.ts            — POST: Vapi webhook (tool calls + end-of-call)
+      r/[slug]/calls/route.ts         — GET: call history with transcripts
+      vapi/[slug]/route.ts            — POST: Vapi webhook (tool calls + end-of-call + guest context)
   components/
     FloorplanCanvas.tsx               — Drag/resize table editor + reservation view
                                         Touch-enabled (native events, not Pointer Events)
@@ -98,11 +100,26 @@ reservations
   table_id TEXT NOT NULL
   special_requests TEXT
   phone TEXT
+  guest_id TEXT → guests(id)
   status TEXT NOT NULL DEFAULT 'confirmed' ('confirmed' | 'cancelled')
   created_at TIMESTAMP
+
+guests
+  id TEXT PK
+  restaurant_id TEXT NOT NULL → restaurants(id) CASCADE
+  phone TEXT NOT NULL
+  name TEXT NOT NULL
+  email TEXT
+  visit_count INTEGER DEFAULT 0
+  last_visit_date TEXT
+  notes TEXT
+  tags TEXT (comma-separated: "vip,regular,wine-lover")
+  created_at TIMESTAMP
+  UNIQUE(restaurant_id, phone)
 ```
 
 All tables cascade-delete from `restaurants`. Deleting a restaurant removes everything.
+Guest profiles are auto-created when reservations include a phone number (findOrCreateGuest). Returning callers are recognized by phone, and their context (visit count, notes, tags) is injected into AI tool results.
 
 ## Multi-Tenancy
 
