@@ -1,5 +1,6 @@
 const VAPI_API_KEY = process.env.VAPI_API_KEY || "";
 const VAPI_BASE = "https://api.vapi.ai";
+const VAPI_WEBHOOK_SECRET = process.env.VAPI_WEBHOOK_SECRET || "";
 
 interface CreateAssistantResult {
   id: string;
@@ -261,6 +262,7 @@ export async function createVapiAssistant(
     server: {
       url: webhookUrl,
       timeoutSeconds: 20,
+      ...(VAPI_WEBHOOK_SECRET ? { secret: VAPI_WEBHOOK_SECRET } : {}),
     },
     serverMessages: ["end-of-call-report"],
   };
@@ -333,7 +335,11 @@ export async function updateVapiAssistant(
       backoffSeconds: 1.0,
     },
     serverUrl: webhookUrl,
-    server: { url: webhookUrl, timeoutSeconds: 20 },
+    server: {
+      url: webhookUrl,
+      timeoutSeconds: 20,
+      ...(VAPI_WEBHOOK_SECRET ? { secret: VAPI_WEBHOOK_SECRET } : {}),
+    },
   };
 
   const res = await fetch(`${VAPI_BASE}/assistant/${assistantId}`, {

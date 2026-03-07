@@ -9,6 +9,8 @@ import {
 } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
 
+const VAPI_WEBHOOK_SECRET = process.env.VAPI_WEBHOOK_SECRET || "";
+
 /** Convert 24h time to spoken format: "20:00" → "8 PM", "19:30" → "7:30 PM" */
 function toSpokenTime(time24: string): string {
   const [h, m] = time24.split(":").map(Number);
@@ -64,6 +66,14 @@ function resolveRelativeDate(description: string): { date: string; spoken: strin
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    // Verify webhook secret from Vapi
+    if (VAPI_WEBHOOK_SECRET) {
+      const incomingSecret = req.headers.get("x-vapi-secret");
+      if (incomingSecret !== VAPI_WEBHOOK_SECRET) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
     await initDB();
     const { slug } = await params;
     const restaurant = await resolveTenant(slug);
