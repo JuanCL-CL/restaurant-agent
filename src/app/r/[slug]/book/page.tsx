@@ -115,14 +115,15 @@ export default function BookingPage() {
     load();
   }, [slug]);
 
-  // Load available time slots when date or party size changes
+  // Load available time slots when date, party size, or section changes
   useEffect(() => {
     if (step !== "datetime" || !selectedDate) return;
     async function loadSlots() {
       setSlotsLoading(true);
       setSelectedTime(null);
       try {
-        const res = await fetch(`/api/r/${slug}/book?date=${selectedDate}&partySize=${partySize}`);
+        const sectionParam = selectedSection ? `&section=${encodeURIComponent(selectedSection)}` : "";
+        const res = await fetch(`/api/r/${slug}/book?date=${selectedDate}&partySize=${partySize}${sectionParam}`);
         const data = await res.json();
         setSlots(data.slots || []);
       } catch {
@@ -132,7 +133,7 @@ export default function BookingPage() {
       }
     }
     loadSlots();
-  }, [step, selectedDate, partySize, slug]);
+  }, [step, selectedDate, partySize, selectedSection, slug]);
 
   async function handleSubmit() {
     if (!guestName.trim()) {
@@ -503,6 +504,39 @@ export default function BookingPage() {
               })()}
             </div>
 
+            {/* Seating preference - affects time slot availability */}
+            {restaurant.sections.length > 1 && (
+              <div className="bg-white rounded-2xl border border-slate-200/60 p-6">
+                <h2 className="text-xl font-bold text-slate-900 mb-1">Seating preference</h2>
+                <p className="text-sm text-slate-400 mb-4">Available times will update based on your choice</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setSelectedSection(null)}
+                    className={`px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+                      selectedSection === null
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60"
+                    }`}
+                  >
+                    No preference
+                  </button>
+                  {restaurant.sections.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedSection(s.name)}
+                      className={`px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+                        selectedSection === s.name
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60"
+                      }`}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Time slots */}
             <div className="bg-white rounded-2xl border border-slate-200/60 p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-1">Pick a time</h2>
@@ -566,6 +600,7 @@ export default function BookingPage() {
             <p className="text-sm text-slate-400 mb-6">
               {partySize} guest{partySize !== 1 ? "s" : ""} · {formatDateDisplay(selectedDate)} ·{" "}
               {selectedTime && formatTime12h(selectedTime)}
+              {selectedSection && ` · ${selectedSection}`}
               <button onClick={() => setStep("datetime")} className="text-blue-600 hover:text-blue-800 ml-2 font-medium">
                 Change
               </button>
@@ -578,38 +613,6 @@ export default function BookingPage() {
             )}
 
             <div className="space-y-4">
-              {/* Seating preference */}
-              {restaurant.sections.length > 1 && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-2">Seating preference</label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setSelectedSection(null)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-                        selectedSection === null
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60"
-                      }`}
-                    >
-                      No preference
-                    </button>
-                    {restaurant.sections.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => setSelectedSection(s.name)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-                          selectedSection === s.name
-                            ? "bg-slate-900 text-white"
-                            : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60"
-                        }`}
-                      >
-                        {s.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">Name *</label>
                 <input

@@ -633,6 +633,14 @@ export async function createReservation(
       };
     }
 
+    // If section preference was given but couldn't be honored, reject instead of silently falling back
+    if (preferredSection && availability.sectionFallback) {
+      return {
+        error: `No ${preferredSection} tables available for a party of ${partySize} at this time. Try a different section or time.`,
+        alternativeTimes: availability.alternativeTimes,
+      };
+    }
+
     primaryTableId = availability.tables.sort((a, b) => a.capacity - b.capacity)[0].id;
   }
 

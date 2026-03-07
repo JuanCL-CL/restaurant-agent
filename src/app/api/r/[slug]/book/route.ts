@@ -18,6 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
 
     const date = req.nextUrl.searchParams.get("date");
     const partySize = parseInt(req.nextUrl.searchParams.get("partySize") || "2");
+    const sectionPref = req.nextUrl.searchParams.get("section") || undefined;
 
     // Build restaurant public info
     const info = {
@@ -45,8 +46,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     // Generate slots every 30 minutes from open to last seating
     for (let mins = openMins; mins <= lastMins; mins += 30) {
       const time = `${Math.floor(mins / 60).toString().padStart(2, "0")}:${(mins % 60).toString().padStart(2, "0")}`;
-      const result = await checkAvailability(restaurant.id, date, time, partySize);
-      slots.push({ time, available: result.available });
+      const result = await checkAvailability(restaurant.id, date, time, partySize, sectionPref);
+      // Only show as available if it doesn't require a section fallback
+      slots.push({ time, available: result.available && !result.sectionFallback });
     }
 
     return NextResponse.json({ restaurant: info, slots, date, partySize });
