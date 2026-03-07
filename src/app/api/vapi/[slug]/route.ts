@@ -9,6 +9,7 @@ import {
   initDB,
 } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
+import { sendReservationConfirmation } from "@/lib/twilio";
 
 const VAPI_WEBHOOK_SECRET = process.env.VAPI_WEBHOOK_SECRET || "";
 
@@ -142,6 +143,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
               const hour12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
               const spokenTime = m === 0 ? `${hour12} ${ampm}` : `${hour12}:${String(m).padStart(2,"0")} ${ampm}`;
               result = { success: true, message: `Reservation confirmed! Say this exactly to the caller: "${guest_name}, party of ${party_size}, on ${spokenDate} at ${spokenTime}." Do NOT say the date or time in any other format.`, reservationId: reservation.id };
+
+              // Send SMS confirmation (non-blocking, don't fail the reservation if SMS fails)
+              if (reservationPhone) {
+                sendReservationConfirmation(reservationPhone, restaurant.name || "the restaurant", guest_name, party_size, date, time, special_requests)
+                  .catch(err => console.error("SMS confirmation failed (non-fatal):", err));
+              }
             }
             break;
           }

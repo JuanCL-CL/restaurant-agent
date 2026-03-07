@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getReservations, getTables, getSections, isRestaurantOwner, updateReservation, cancelReservation, createReservation } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
 import { auth } from "@/lib/auth";
+import { sendReservationConfirmation } from "@/lib/twilio";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -57,6 +58,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     if ("error" in result) {
       return NextResponse.json({ error: result.error, alternativeTimes: result.alternativeTimes }, { status: 409 });
     }
+
+    // Send SMS confirmation if phone provided (non-blocking)
+    if (phone) {
+      sendReservationConfirmation(phone, restaurant.name || "the restaurant", guestName, partySize, date, time, specialRequests)
+        .catch(err => console.error("SMS confirmation failed (non-fatal):", err));
+    }
+
     return NextResponse.json({ reservation: result }, { status: 201 });
   } catch (error) {
     console.error("Reservation POST error:", error);
