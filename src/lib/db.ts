@@ -892,7 +892,10 @@ export async function updateGuest(
   updates: { name?: string; email?: string; notes?: string; tags?: string }
 ): Promise<Guest> {
   await initDB();
-  if (updates.name !== undefined) await sql`UPDATE guests SET name = ${updates.name} WHERE id = ${guestId}`;
+  if (updates.name !== undefined) {
+    await sql`UPDATE guests SET name = ${updates.name} WHERE id = ${guestId}`;
+    await sql`UPDATE reservations SET guest_name = ${updates.name} WHERE guest_id = ${guestId}`;
+  }
   if (updates.email !== undefined) await sql`UPDATE guests SET email = ${updates.email} WHERE id = ${guestId}`;
   if (updates.notes !== undefined) await sql`UPDATE guests SET notes = ${updates.notes} WHERE id = ${guestId}`;
   if (updates.tags !== undefined) await sql`UPDATE guests SET tags = ${updates.tags} WHERE id = ${guestId}`;
