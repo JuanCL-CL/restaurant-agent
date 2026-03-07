@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSettings, updateSettings, getSections, createSection, updateSection, deleteSection, getTables, createTable, updateTable, deleteTable, isRestaurantOwner } from "@/lib/db";
+import { getSettings, updateSettings, getSections, createSection, updateSection, deleteSection, getTables, createTable, updateTable, deleteTable, isRestaurantOwner, initDB } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
 import { auth } from "@/lib/auth";
 import { updateVapiAssistant } from "@/lib/vapi";
+import { sql } from "@vercel/postgres";
 import type { Restaurant } from "@/lib/db";
 
 /** Sync Vapi assistant prompt with latest restaurant settings (non-fatal) */
@@ -88,6 +89,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     switch (action) {
       case "update_settings": {
         const result = await updateSettings(restaurant.id, body.settings);
+        // Sync the restaurant name in the restaurants table too (for switcher/nav)
+        if (body.settings?.name) {
+          await initDB();
+          await sql`UPDATE restaurants SET name = ${body.settings.name} WHERE id = ${restaurant.id}`;
+        }
         // Sync the AI agent prompt with the new settings
         await syncVapiAgent(restaurant);
         return NextResponse.json({ settings: result });
