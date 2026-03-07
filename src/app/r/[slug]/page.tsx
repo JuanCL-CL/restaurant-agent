@@ -434,7 +434,7 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">Time</label>
                   <input type="time" value={editForm.time} onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                    className="w-full max-w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                 </div>
               </div>
               <div>
@@ -543,12 +543,12 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">Date *</label>
                   <input type="date" value={addForm.date} onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                    className="w-full max-w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">Time *</label>
                   <input type="time" value={addForm.time} onChange={(e) => setAddForm({ ...addForm, time: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                    className="w-full max-w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                 </div>
               </div>
               <div>
