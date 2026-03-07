@@ -115,6 +115,8 @@ All tables cascade-delete from `restaurants`. Deleting a restaurant removes ever
 - **NextAuth v5** + Google OAuth
 - `prompt: "select_account"` forces Google account picker (prevents auto-select)
 - Middleware protects all routes except: `/`, `/login`, `/onboarding`, `/api/auth/*`, `/api/vapi/*`, `/auth/*`, `/r/*/book`, `/api/r/*/book`
+- Settings update auto-syncs slug from restaurant name (lowercase, hyphenated, collision-safe)
+- `createReservation` rejects section fallback instead of silently switching (public bookings + Vapi)
 - Custom `/auth/error` page auto-clears stale cookies and redirects to login
 - Users auto-upserted on sign-in (non-fatal if DB errors)
 
