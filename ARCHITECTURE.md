@@ -1,4 +1,4 @@
-# ARCHITECTURE.md — TableCall Technical Reference
+# ARCHITECTURE.md — Mesa Technical Reference
 
 > **Purpose:** Single source of truth for the project's internals. If you're an AI agent (or future-me) picking this up cold, read this file first.
 >
@@ -202,7 +202,7 @@ Pointer Events + `setPointerCapture` are **unreliable on mobile Safari/Chrome**.
 | `TWILIO_AUTH_TOKEN` | Twilio telephony |
 | `POSTGRES_URL` (+ variants) | Neon DB via Vercel integration |
 
-Google Cloud project: "TableCall"
+Google Cloud project: "TableCall" (legacy name, not yet renamed in GCP)
 OAuth callback: `https://www.mesacall.com/api/auth/callback/google` (also keep old Vercel URL as fallback)
 
 ## Current State (as of 2026-03-06)
@@ -225,14 +225,14 @@ OAuth callback: `https://www.mesacall.com/api/auth/callback/google` (also keep o
 - All pushed to GitHub (`JuanCL-CL/restaurant-agent`)
 
 ### What's Next 📋
+- [x] Update Vapi webhook URLs for existing restaurants to mesacall.com
 - [ ] Public booking page (`/r/[slug]/book`)
 - [ ] SMS notifications on new reservation
 - [ ] Call history / transcripts
 - [ ] Subdomain routing (one-line swap in `tenant.ts`)
-- [ ] Custom domain (tablecall.com or similar)
 - [ ] Upgrade Twilio from trial ($20)
 - [ ] Migrate `@vercel/postgres` → `@neondatabase/serverless` (current dep is deprecated)
 
 ---
 
-*Last updated: 2026-03-06 — generated from actual source code inspection*
+*Last updated: 2026-03-06 — rebranded to Mesa (mesacall.com)*

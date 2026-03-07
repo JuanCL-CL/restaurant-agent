@@ -27,6 +27,34 @@ export async function listTwilioNumbers(): Promise<TwilioNumber[]> {
   }));
 }
 
+/** Disconnect a phone number from its Vapi assistant (clear the assistantId). */
+export async function disconnectPhoneFromVapi(phoneNumber: string): Promise<void> {
+  const listRes = await fetch("https://api.vapi.ai/phone-number?limit=50", {
+    headers: { Authorization: `Bearer ${VAPI_API_KEY}` },
+  });
+
+  if (!listRes.ok) return; // If we can't list, just clear the DB side
+
+  const numbers = await listRes.json();
+  const existing = numbers.find?.((n: { number?: string }) => n.number === phoneNumber);
+  if (!existing) return; // Number not in Vapi, nothing to disconnect
+
+  const updateRes = await fetch(`https://api.vapi.ai/phone-number/${existing.id}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${VAPI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ assistantId: null }),
+  });
+
+  if (!updateRes.ok) {
+    const err = await updateRes.text();
+    console.warn(`Vapi phone disconnect warning: ${updateRes.status} ${err}`);
+    // Don't throw — we still want to clear the DB side even if Vapi fails
+  }
+}
+
 /** Import a phone number into Vapi and connect it to an assistant.
  *  `phoneNumber` must be E.164 format (e.g. +18482786810).
  *  `phoneNumberSid` is the Twilio SID (kept for legacy lookup). */

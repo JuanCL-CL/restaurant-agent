@@ -50,6 +50,7 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
   const [phoneNumbers, setPhoneNumbers] = useState<Array<{ sid: string; phoneNumber: string; friendlyName: string; assigned: boolean; assignedToThis: boolean }>>([]);
   const [loadingPhone, setLoadingPhone] = useState(false);
   const [assigningPhone, setAssigningPhone] = useState(false);
+  const [removingPhone, setRemovingPhone] = useState(false);
   const [floorplanSectionId, setFloorplanSectionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -358,7 +359,49 @@ export default function SettingsPage({ params }: { params: Promise<{ slug: strin
                 )}
               </div>
 
-              {!restaurantInfo?.twilio_phone && restaurantInfo?.vapi_assistant_id && (
+              {restaurantInfo?.twilio_phone && restaurantInfo?.vapi_assistant_id && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button
+                    onClick={async () => {
+                      setLoadingPhone(true);
+                      try {
+                        const res = await fetch(`/api/r/${slug}/phone`);
+                        const data = await res.json();
+                        setPhoneNumbers(data.numbers || []);
+                      } catch { showMessage("❌ Failed to load phone numbers"); }
+                      setLoadingPhone(false);
+                    }}
+                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition text-sm font-semibold border border-slate-200/60"
+                  >
+                    {loadingPhone ? "Loading…" : "Change number"}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Remove this phone number? Your AI agent will stop receiving calls until you assign a new one.")) return;
+                      setRemovingPhone(true);
+                      try {
+                        const res = await fetch(`/api/r/${slug}/phone`, { method: "DELETE" });
+                        const data = await res.json();
+                        if (data.success) {
+                          setRestaurantInfo((prev) => prev ? { ...prev, twilio_phone: undefined } : prev);
+                          setPhoneNumbers([]);
+                          showMessage("✅ Phone number removed");
+                        } else {
+                          showMessage(`❌ ${data.error || "Failed"}`);
+                        }
+                      } catch { showMessage("❌ Failed to remove number"); }
+                      setRemovingPhone(false);
+                    }}
+                    disabled={removingPhone}
+                    className="px-4 py-2 bg-white text-red-600 rounded-xl hover:bg-red-50 transition text-sm font-semibold border border-red-200 disabled:opacity-50"
+                  >
+                    {removingPhone ? "Removing…" : "Remove number"}
+                  </button>
+                </div>
+              )}
+
+              {/* Phone number picker — shown when no number assigned, OR when changing */}
+              {((!restaurantInfo?.twilio_phone && restaurantInfo?.vapi_assistant_id) || (restaurantInfo?.twilio_phone && phoneNumbers.length > 0)) && (
                 <div>
                   {phoneNumbers.length === 0 && !loadingPhone ? (
                     <button
