@@ -80,6 +80,7 @@ export default function BookingPage() {
   const [guestName, setGuestName] = useState("");
   const [phone, setPhone] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
+  const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null);
@@ -151,6 +152,7 @@ export default function BookingPage() {
           time: selectedTime,
           phone: phone.trim() || undefined,
           specialRequests: specialRequests.trim() || undefined,
+          section: selectedSection || undefined,
         }),
       });
       const data = await res.json();
@@ -271,6 +273,7 @@ export default function BookingPage() {
               setGuestName("");
               setPhone("");
               setSpecialRequests("");
+              setSelectedSection(null);
               setConfirmation(null);
               setSubmitError(null);
             }}
@@ -575,6 +578,38 @@ export default function BookingPage() {
             )}
 
             <div className="space-y-4">
+              {/* Seating preference */}
+              {restaurant.sections.length > 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-2">Seating preference</label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedSection(null)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                        selectedSection === null
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60"
+                      }`}
+                    >
+                      No preference
+                    </button>
+                    {restaurant.sections.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedSection(s.name)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                          selectedSection === s.name
+                            ? "bg-slate-900 text-white"
+                            : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60"
+                        }`}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">Name *</label>
                 <input

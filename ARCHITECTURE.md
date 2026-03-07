@@ -16,6 +16,7 @@ src/
     onboarding/page.tsx               — Create restaurant flow
     auth/error/page.tsx               — Auth error auto-recovery (clears stale cookies)
     r/[slug]/page.tsx                 — Dashboard (per-restaurant, reservation view)
+    r/[slug]/book/page.tsx            — Public booking page (no auth, customer-facing)
     r/[slug]/settings/page.tsx        — Settings + floorplan editor + AI agent + phone
     api/
       auth/[...nextauth]/route.ts     — NextAuth handler
@@ -23,6 +24,7 @@ src/
       onboarding/route.ts             — POST: create restaurant + sections + tables + Vapi agent
       my-restaurants/route.ts         — GET: list restaurants owned by current user
       r/[slug]/reservations/route.ts  — GET/PATCH/DELETE: reservation CRUD
+      r/[slug]/book/route.ts          — GET: public restaurant info + time slots, POST: public reservation creation
       r/[slug]/settings/route.ts      — GET/PUT: restaurant settings (auto-syncs Vapi agent)
       r/[slug]/phone/route.ts         — GET: available numbers, POST: assign Twilio number
       r/[slug]/delete/route.ts        — DELETE: cascade-delete restaurant + Vapi assistant
@@ -112,7 +114,7 @@ All tables cascade-delete from `restaurants`. Deleting a restaurant removes ever
 
 - **NextAuth v5** + Google OAuth
 - `prompt: "select_account"` forces Google account picker (prevents auto-select)
-- Middleware protects all routes except: `/`, `/login`, `/onboarding`, `/api/auth/*`, `/api/vapi/*`, `/auth/*`
+- Middleware protects all routes except: `/`, `/login`, `/onboarding`, `/api/auth/*`, `/api/vapi/*`, `/auth/*`, `/r/*/book`, `/api/r/*/book`
 - Custom `/auth/error` page auto-clears stale cookies and redirects to login
 - Users auto-upserted on sign-in (non-fatal if DB errors)
 
@@ -226,7 +228,7 @@ OAuth callback: `https://www.mesacall.com/api/auth/callback/google` (also keep o
 
 ### What's Next 📋
 - [x] Update Vapi webhook URLs for existing restaurants to mesacall.com
-- [ ] Public booking page (`/r/[slug]/book`)
+- [x] Public booking page (`/r/[slug]/book`)
 - [ ] SMS notifications on new reservation
 - [ ] Call history / transcripts
 - [ ] Subdomain routing (one-line swap in `tenant.ts`)
