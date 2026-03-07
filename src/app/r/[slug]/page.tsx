@@ -394,11 +394,13 @@ export default function Dashboard({ params }: { params: Promise<{ slug: string }
                         <div className="flex items-center gap-2 flex-wrap mb-3">
                           {r.section_name && <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-500">📍 {r.section_name}</span>}
                           <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-500">🪑 {[r.table_id, ...(r.extra_table_ids ? r.extra_table_ids.split(",") : [])].map(id => tableNameById[id] || id).join(" + ")}</span>
+                          {r.phone && <a href={`tel:${r.phone}`} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition">📱 {r.phone}</a>}
                           {r.special_requests && <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-600 border border-amber-200">🎂 {r.special_requests}</span>}
                         </div>
                         {r.status !== "cancelled" && (
                           <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                             <button onClick={() => openEdit(r)} className="text-xs font-medium text-blue-600 hover:text-blue-800 transition px-2 py-1 rounded-lg hover:bg-blue-50">✏️ Edit</button>
+                            {r.phone && <a href={`tel:${r.phone}`} className="text-xs font-medium text-emerald-600 hover:text-emerald-800 transition px-2 py-1 rounded-lg hover:bg-emerald-50">📞 Call Back</a>}
                             <button onClick={() => setCancelConfirm(r.id)} className="text-xs font-medium text-red-500 hover:text-red-700 transition px-2 py-1 rounded-lg hover:bg-red-50">✕ Cancel</button>
                           </div>
                         )}

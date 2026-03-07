@@ -123,7 +123,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
           }
           case "make_reservation": {
             const { guest_name, party_size, date, time, special_requests, phone, section } = args;
-            const reservation = await createReservation(restaurantId, guest_name, party_size, date, time, special_requests, phone, section);
+            // Auto-capture caller's phone number if AI didn't collect one explicitly
+            const callerPhone = body.call?.customer?.number || null;
+            const reservationPhone = phone || callerPhone || undefined;
+            const reservation = await createReservation(restaurantId, guest_name, party_size, date, time, special_requests, reservationPhone, section);
             if ("error" in reservation) {
               result = { success: false, message: reservation.error, alternativeTimes: reservation.alternativeTimes };
             } else {
