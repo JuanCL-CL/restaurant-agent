@@ -5,6 +5,9 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Public routes — don't require auth
+  // Check if this is a public booking page or API
+  const bookingMatch = pathname.match(/^\/(?:api\/)?r\/[^/]+\/book/);
+
   const isPublic =
     pathname === "/" ||
     pathname === "/login" ||
@@ -14,7 +17,8 @@ export default auth((req) => {
     pathname.startsWith("/api/onboarding") ||  // Onboarding API
     pathname.startsWith("/auth/") ||           // Auth error page
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon");
+    pathname.startsWith("/favicon") ||
+    !!bookingMatch;                            // Public booking pages + API
 
   if (isPublic) return NextResponse.next();
 
