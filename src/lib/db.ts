@@ -57,6 +57,23 @@ export interface Reservation {
   created_at: string;
 }
 
+export interface Call {
+  id: string;
+  restaurant_id: string;
+  vapi_call_id: string;
+  call_type: string;
+  caller_phone?: string;
+  started_at: string;
+  ended_at: string;
+  duration_seconds: number;
+  ended_reason?: string;
+  summary?: string;
+  transcript?: object;
+  recording_url?: string;
+  cost?: number;
+  created_at: string;
+}
+
 export interface RestaurantSettings {
   restaurant_id: string;
   name: string;
@@ -149,6 +166,25 @@ export async function initDB() {
       special_requests TEXT,
       phone TEXT,
       status TEXT NOT NULL DEFAULT 'confirmed',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS calls (
+      id TEXT PRIMARY KEY,
+      restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+      vapi_call_id TEXT UNIQUE,
+      call_type TEXT,
+      caller_phone TEXT,
+      started_at TIMESTAMP,
+      ended_at TIMESTAMP,
+      duration_seconds INTEGER,
+      ended_reason TEXT,
+      summary TEXT,
+      transcript JSONB,
+      recording_url TEXT,
+      cost DOUBLE PRECISION,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
@@ -664,4 +700,51 @@ export async function findReservation(restaurantId: string, guestName: string, d
     WHERE r.restaurant_id = ${restaurantId} AND LOWER(r.guest_name) LIKE ${'%' + guestName.toLowerCase() + '%'} AND r.status = 'confirmed'
   `;
   return rows as Reservation[];
+}
+
+// ---- Calls ----
+
+export async function saveCall(
+  restaurantId: string,
+  vapiCallId: string,
+  data: {
+    callType?: string;
+    callerPhone?: string;
+    startedAt?: string;
+    endedAt?: string;
+    durationSeconds?: number;
+    endedReason?: string;
+    summary?: string;
+    transcript?: object;
+    recordingUrl?: string;
+    cost?: number;
+  }
+): Promise<Call> {
+  await initDB();
+  const id = `call-${Date.now()}`;
+  await sql`
+    INSERT INTO calls (id, restaurant_id, vapi_call_id, call_type, caller_phone, started_at, ended_at, duration_seconds, ended_reason, summary, transcript, recording_url, cost)
+    VALUES (
+      ${id}, ${restaurantId}, ${vapiCallId}, ${data.callType || null}, ${data.callerPhone || null},
+      ${data.startedAt || null}, ${data.endedAt || null}, ${data.durationSeconds || null},
+      ${data.endedReason || null}, ${data.summary || null},
+      ${data.transcript ? JSON.stringify(data.transcript) : null},
+      ${data.recordingUrl || null}, ${data.cost || null}
+    )
+    ON CONFLICT (vapi_call_id) DO NOTHING
+  `;
+  const { rows } = await sql`SELECT * FROM calls WHERE id = ${id}`;
+  return rows[0] as Call;
+}
+
+export async function getCalls(restaurantId: string, limit = 50, offset = 0): Promise<{ calls: Call[]; total: number }> {
+  await initDB();
+  const { rows: countRows } = await sql`SELECT COUNT(*) as total FROM calls WHERE restaurant_id = ${restaurantId}`;
+  const total = parseInt(countRows[0].total);
+  const { rows } = await sql`
+    SELECT * FROM calls WHERE restaurant_id = ${restaurantId}
+    ORDER BY started_at DESC NULLS LAST
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+  return { calls: rows as Call[], total };
 }

@@ -5,6 +5,7 @@ import {
   findReservation,
   cancelReservation,
   updateReservation,
+  saveCall,
   initDB,
 } from "@/lib/db";
 import { resolveTenant } from "@/lib/tenant";
@@ -182,7 +183,42 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     }
 
     if (message?.type === "end-of-call-report") {
-      console.log("Call ended:", { duration: message.endedReason, summary: message.summary });
+      // Save call data to our database
+      try {
+        const callId = body.call?.id || message.callId || `unknown-${Date.now()}`;
+        const startedAt = body.call?.startedAt || message.startedAt || null;
+        const endedAt = body.call?.endedAt || message.endedAt || null;
+
+        // Calculate duration
+        let durationSeconds: number | undefined;
+        if (startedAt && endedAt) {
+          durationSeconds = Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000);
+        }
+
+        // Extract transcript from messages array
+        const transcript = (message.messages || body.call?.messages || [])
+          .filter((m: { role?: string; message?: string }) => m.role && m.message)
+          .map((m: { role: string; message: string }) => ({
+            role: m.role === 'bot' || m.role === 'assistant' ? 'assistant' : m.role === 'user' ? 'caller' : m.role,
+            text: m.message,
+          }));
+
+        await saveCall(restaurantId, callId, {
+          callType: body.call?.type || message.type || null,
+          callerPhone: body.call?.customer?.number || null,
+          startedAt,
+          endedAt,
+          durationSeconds,
+          endedReason: message.endedReason || body.call?.endedReason || null,
+          summary: message.analysis?.summary || message.summary || null,
+          transcript: transcript.length > 0 ? transcript : null,
+          recordingUrl: message.recordingUrl || body.call?.recordingUrl || message.artifact?.recordingUrl || null,
+          cost: message.cost || body.call?.cost || null,
+        });
+      } catch (err) {
+        console.error("Failed to save call data (non-fatal):", err);
+      }
+
       return NextResponse.json({ ok: true });
     }
 
