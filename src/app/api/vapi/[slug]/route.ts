@@ -97,11 +97,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       if (callerNumber) {
         const guest = await getGuestByPhone(restaurantId, callerNumber);
         if (guest && guest.visit_count > 0) {
-          const parts = [`This is a returning guest: ${guest.name} (${guest.visit_count} previous visit${guest.visit_count > 1 ? "s" : ""})`];
+          const parts = [`INTERNAL CONTEXT (do NOT mention this to the caller): Returning guest — ${guest.name}, ${guest.visit_count} previous visit${guest.visit_count > 1 ? "s" : ""}`];
           if (guest.last_visit_date) parts.push(`last visited ${guest.last_visit_date}`);
           if (guest.notes) parts.push(`Notes: ${guest.notes}`);
           if (guest.tags) parts.push(`Tags: ${guest.tags}`);
-          guestContext = parts.join(". ") + ". Greet them warmly by name and reference their history if appropriate. Use any notes to personalize service (e.g. seat preferences, allergies).";
+          guestContext = parts.join(". ") + ". DO NOT greet them by name or mention their visit history — that would be unsettling. Instead, silently use this info to improve service: apply their preferences (seating, allergies) without calling attention to it. If they give their name, you can use it naturally from that point on.";
         }
       }
 
