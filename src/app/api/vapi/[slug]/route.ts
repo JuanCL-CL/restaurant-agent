@@ -197,7 +197,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     if (message?.type === "end-of-call-report") {
       // Save call data to our database
       try {
-        const callId = body.call?.id || message.callId || `unknown-${Date.now()}`;
+        const callId = body.call?.id || message.callId || `unknown-${crypto.randomUUID()}`;
         const startedAt = body.call?.startedAt || message.startedAt || null;
         const endedAt = body.call?.endedAt || message.endedAt || null;
 

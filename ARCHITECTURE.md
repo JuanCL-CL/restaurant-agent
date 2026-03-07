@@ -235,7 +235,7 @@ OAuth callback: `https://www.mesacall.com/api/auth/callback/google` (also keep o
 - [ ] Call history / transcripts
 - [ ] Subdomain routing (one-line swap in `tenant.ts`)
 - [ ] Upgrade Twilio from trial ($20)
-- [ ] Migrate `@vercel/postgres` → `@neondatabase/serverless` (current dep is deprecated)
+- [x] Migrate `@vercel/postgres` → `@neondatabase/serverless` (2026-03-07, commit c65131b)
 
 ---
 

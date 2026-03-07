@@ -311,7 +311,7 @@ export async function createRestaurant(slug: string, name: string, ownerEmail?: 
     counters[t.section] = idx + 1;
     const col = idx % 3;
     const row = Math.floor(idx / 3);
-    const tid = `${id}-t${Date.now()}-${idx}`;
+    const tid = `${id}-t-${crypto.randomUUID()}`;
     await sql`
       INSERT INTO tables (id, name, capacity, section_id, restaurant_id, x, y, w, h)
       VALUES (${tid}, ${t.name}, ${t.capacity}, ${t.section}, ${id}, ${6 + col * 30}, ${8 + row * 22}, ${22}, ${18})
@@ -404,7 +404,7 @@ export async function createTable(
   layout?: { x?: number; y?: number; w?: number; h?: number }
 ): Promise<Table> {
   await initDB();
-  const id = `t${Date.now()}`;
+  const id = `t-${crypto.randomUUID()}`;
   const x = layout?.x ?? 6;
   const y = layout?.y ?? 8;
   const w = layout?.w ?? 22;
@@ -644,7 +644,7 @@ export async function createReservation(
     primaryTableId = availability.tables.sort((a, b) => a.capacity - b.capacity)[0].id;
   }
 
-  const id = `r${Date.now()}`;
+  const id = `r-${crypto.randomUUID()}`;
 
   await sql`
     INSERT INTO reservations (id, restaurant_id, guest_name, party_size, date, time, table_id, extra_table_ids, special_requests, phone, status)
@@ -729,7 +729,7 @@ export async function saveCall(
   }
 ): Promise<Call> {
   await initDB();
-  const id = `call-${Date.now()}`;
+  const id = `call-${crypto.randomUUID()}`;
   await sql`
     INSERT INTO calls (id, restaurant_id, vapi_call_id, call_type, caller_phone, started_at, ended_at, duration_seconds, ended_reason, summary, transcript, recording_url, cost)
     VALUES (
